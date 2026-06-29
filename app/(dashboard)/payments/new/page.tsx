@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import Link from 'next/link'
@@ -8,7 +8,7 @@ import { Customer } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
-export default function NewPaymentPage() {
+function NewPaymentInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const defaultCustomerId = searchParams.get('customerId') || ''
@@ -126,5 +126,13 @@ export default function NewPaymentPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function NewPaymentPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-gray-400">Loading...</div>}>
+      <NewPaymentInner />
+    </Suspense>
   )
 }
