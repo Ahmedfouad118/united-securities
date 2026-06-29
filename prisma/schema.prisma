@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model CompanySettings {
+  id           String   @id @default(cuid())
+  nameEn       String   @default("United Securities Company L.L.C")
+  nameAr       String   @default("شركة متحدة للأوراق المالية")
+  crNumber     String?
+  vatNumber    String?  @default("OM1100021056")
+  phone        String?  @default("+968 24763300")
+  fax          String?  @default("+968 24503750")
+  email        String?  @default("info@usoman.com")
+  website      String?  @default("www.usoman.com")
+  poBox        String?  @default("2566")
+  postalCode   String?  @default("112")
+  address      String?  @default("Ruwi, Muscat, Sultanate of Oman")
+  logoUrl      String?
+  smtpHost     String?  @default("smtp.office365.com")
+  smtpPort     Int?     @default(587)
+  smtpUser     String?
+  smtpPass     String?
+  smtpFrom     String?
+  smtpCc       String?
+  updatedAt    DateTime @updatedAt
+}
+
+model User {
+  id              String        @id @default(cuid())
+  name            String
+  email           String        @unique
+  password        String
+  role            String        @default("VIEWER")
+  active          Boolean       @default(true)
+  permissions     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  invoicesCreated Invoice[]     @relation("CreatedBy")
+  invoicesApproved Invoice[]    @relation("ApprovedBy")
+  receiptsCreated Receipt[]
+}
+
+model Customer {
+  id             String        @id @default(cuid())
+  code           String?       @unique
+  name           String
+  nameAr         String?
+  phone          String?
+  email          String?
+  vatNumber      String?
+  nin            String?
+  accountNumber  String?
+  clientNumber   String?
+  shareholderNumber String?
+  address        String?
+  openingBalance Float         @default(0)
+  currentBalance Float         @default(0)
+  active         Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  invoices       Invoice[]
+  transactions   Transaction[]
+  receipts       Receipt[]
+}
+
+model InvoiceCategory {
+  id        String    @id @default(cuid())
+  name      String
+  nameAr    String?
+  type      String    @default("REGULAR")
+  notes     String?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  invoices  Invoice[]
+}
+
+model BankAccount {
+  id            String    @id @default(cuid())
+  bankName      String
+  bankNameAr    String?
+  swiftCode     String?
+  accountNumber String?
+  iban          String?
+  accountName   String?
+  currency      String    @default("OMR")
+  notes         String?
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  invoices      Invoice[]
+  receipts      Receipt[]
+}
+
+model ServiceType {
+  id          String        @id @default(cuid())
+  name        String
+  nameAr      String?
+  description String?
+  vatRate     Float         @default(5)
+  active      Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  items       InvoiceItem[]
+}
+
+model PaymentCategory {
+  id        String    @id @default(cuid())
+  name      String
+  nameAr    String?
+  notes     String?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  receipts  Receipt[]
+}
+
+model Invoice {
+  id                String          @id @default(cuid())
+  invoiceNumber     String          @unique
+  invoiceType       String          @default("REGULAR")
+  categoryId        String?
+  category          InvoiceCategory? @relation(fields: [categoryId], references: [id])
+  customerId        String
+  customer          Customer        @relation(fields: [customerId], references: [id])
+  bankAccountId     String?
+  bankAccount       BankAccount?    @relation(fields: [bankAccountId], references: [id])
+  date              DateTime        @default(now())
+  dueDate           DateTime?
+  subtotal          Float           @default(0)
+  vatRate           Float           @default(5)
+  vatAmount         Float           @default(0)
+  totalAmount       Float
+  paidAmount        Float           @default(0)
+  remaining         Float
+  status            String          @default("UNPAID")
+  approvalStatus    String          @default("PENDING")
+  approvedById      String?
+  approvedBy        User?           @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedAt        DateTime?
+  canceledAt        DateTime?
+  canceledBy        String?
+  cancelReason      String?
+  isCanceled        Boolean         @default(false)
+  referenceInvoiceId String?
+  feeData           String?
+  periodLabel       String?
+  notes             String?
+  createdById       String?
+  createdByUser     User?           @relation("CreatedBy", fields: [createdById], references: [id])
+  items             InvoiceItem[]
+  transactions      Transaction[]
+  receipts          Receipt[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model InvoiceItem {
+  id            String       @id @default(cuid())
+  invoiceId     String
+  invoice       Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  serviceTypeId String?
+  serviceType   ServiceType? @relation(fields: [serviceTypeId], references: [id])
+  description   String
+  quantity      Float
+  unitPrice     Float
+  subtotal      Float
+  vatRate       Float        @default(5)
+  vatAmount     Float        @default(0)
+  total         Float
+}
+
+model Receipt {
+  id               String           @id @default(cuid())
+  receiptNumber    String           @unique
+  customerId       String
+  customer         Customer         @relation(fields: [customerId], references: [id])
+  invoiceId        String?
+  invoice          Invoice?         @relation(fields: [invoiceId], references: [id])
+  categoryId       String?
+  category         PaymentCategory? @relation(fields: [categoryId], references: [id])
+  bankAccountId    String?
+  bankAccount      BankAccount?     @relation(fields: [bankAccountId], references: [id])
+  paymentType      String           @default("FULL")
+  paymentMethod    String           @default("TRANSFER")
+  checkNumber      String?
+  checkDate        DateTime?
+  amount           Float
+  date             DateTime         @default(now())
+  notes            String?
+  status           String           @default("ACTIVE")
+  createdById      String?
+  createdByUser    User?            @relation(fields: [createdById], references: [id])
+  createdAt        DateTime         @default(now())
+}
+
+model Transaction {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  invoiceId  String?
+  invoice    Invoice? @relation(fields: [invoiceId], references: [id])
+  type       String
+  date       DateTime @default(now())
+  amount     Float
+  notes      String?
+  createdAt  DateTime @default(now())
+}
