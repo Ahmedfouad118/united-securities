@@ -87,6 +87,19 @@ export default function InvoicesPage() {
     else toast.error(data.error || (lang === 'en' ? 'Delete failed' : 'فشل الحذف'))
   }
 
+  async function bulkDelete() {
+    if (!selected.length) return
+    if (!confirm(lang === 'en' ? `Delete ${selected.length} selected invoice(s)? This cannot be undone.` : `حذف ${selected.length} فاتورة محددة؟ لا يمكن التراجع.`)) return
+    let ok = 0, fail = 0
+    for (const id of selected) {
+      const res = await fetch(`/api/invoices/${id}`, { method: 'DELETE' })
+      res.ok ? ok++ : fail++
+    }
+    toast.success(lang === 'en' ? `Deleted ${ok}${fail ? `, ${fail} failed` : ''}` : `تم حذف ${ok}${fail ? `، فشل ${fail}` : ''}`)
+    setSelected([])
+    fetchInvoices()
+  }
+
   async function approveInvoice(id: string, action: 'approve' | 'reject') {
     const res = await fetch(`/api/invoices/${id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) })
     if (res.ok) { toast.success(action === 'approve' ? t.common.approve : t.common.reject); fetchInvoices() }
@@ -254,11 +267,16 @@ export default function InvoicesPage() {
             {selected.length > 0 && (
               <>
                 <button onClick={openInOutlook} className="btn-primary text-sm py-2 bg-blue-600 hover:bg-blue-700" title={lang === 'en' ? 'Open draft in your signed-in Outlook' : 'يفتح رسالة في Outlook المسجّل عندك'}>
-                  <Mail size={14} /> {lang === 'en' ? `Outlook (${selected.length})` : `Outlook (${selected.length})`}
+                  <Mail size={14} /> Outlook ({selected.length})
                 </button>
                 <button onClick={emailSelected} disabled={sendingEmail} className="btn-primary text-sm py-2 bg-green-600 hover:bg-green-700" title={lang === 'en' ? 'Send automatically via SMTP' : 'إرسال تلقائي عبر SMTP'}>
-                  <Mail size={14} /> {sendingEmail ? (lang === 'en' ? 'Sending...' : 'جاري الإرسال...') : (lang === 'en' ? `SMTP (${selected.length})` : `SMTP (${selected.length})`)}
+                  <Mail size={14} /> {sendingEmail ? (lang === 'en' ? 'Sending...' : 'جاري الإرسال...') : `SMTP (${selected.length})`}
                 </button>
+                {role === 'ADMIN' && (
+                  <button onClick={bulkDelete} className="btn-primary text-sm py-2 bg-red-600 hover:bg-red-700" title={lang === 'en' ? 'Delete selected invoices' : 'حذف الفواتير المحددة'}>
+                    <Trash2 size={14} /> {lang === 'en' ? `Delete (${selected.length})` : `حذف (${selected.length})`}
+                  </button>
+                )}
               </>
             )}
             <select className="input text-sm w-40" value={invoiceType} onChange={e => { setInvoiceType(e.target.value); setPage(1) }}>
@@ -367,6 +385,7 @@ export default function InvoicesPage() {
                       <td className="table-cell">
                         <div className="flex items-center gap-2">
                           <Link href={`/invoices/${inv.id}`} className="text-blue-400 hover:text-blue-600 text-xs">{lang === 'en' ? 'View' : 'عرض'}</Link>
+                          {role === 'ADMIN' && <Link href={`/invoices/${inv.id}/edit`} className="text-amber-500 hover:text-amber-700 text-xs">{lang === 'en' ? 'Edit' : 'تعديل'}</Link>}
                           <Link href={`/invoices/${inv.id}/print`} className="text-gray-400 hover:text-gray-600 text-xs">{t.common.print}</Link>
                           {(role === 'ADMIN' || role === 'ACCOUNTANT') && inv.approvalStatus === 'PENDING' && !inv.isCanceled && (
                             <>

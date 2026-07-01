@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   if (!file) return NextResponse.json({ error: 'لم يتم رفع ملف' }, { status: 400 })
 
   const buffer = Buffer.from(await file.arrayBuffer())
-  const workbook = XLSX.read(buffer, { type: 'buffer' })
+  const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true })
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
   const rows = XLSX.utils.sheet_to_json(sheet) as any[]
 
@@ -74,7 +74,24 @@ export async function POST(req: NextRequest) {
       const vatRate = num(pick(row, ['VAT%', 'الضريبة%', 'vatRate'])) || 5
       const dateRaw = pick(row, ['Date', 'التاريخ', 'date'])
       let date = now
-      if (dateRaw) { const d = new Date(dateRaw); if (!isNaN(d.getTime())) date = d }
+      if (dateRaw instanceof Date && !isNaN(dateRaw.getTime())) {
+        date = dateRaw
+      } else if (typeof dateRaw === 'number') {
+        // Excel serial date number → JS date (Excel epoch 1899-12-30)
+        date = new Date(Math.round((dateRaw - 25569) * 86400 * 1000))
+      } else if (dateRaw) {
+        const s = String(dateRaw).trim()
+        // Handle dd/mm/yyyy and dd-mm-yyyy explicitly (avoid US mm/dd ambiguity)
+        const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/)
+        if (m) {
+          const dd = +m[1], mm = +m[2], yy = m[3].length === 2 ? 2000 + +m[3] : +m[3]
+          const d = new Date(yy, mm - 1, dd)
+          if (!isNaN(d.getTime())) date = d
+        } else {
+          const d = new Date(s)
+          if (!isNaN(d.getTime())) date = d
+        }
+      }
 
       let subtotal = 0, items: any[] = [], feeData: any = null, periodLabel = ''
 

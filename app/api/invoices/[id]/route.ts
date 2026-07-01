@@ -36,8 +36,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   const {
     customerId, invoiceType, categoryId, bankAccountId, items, notes, date, dueDate,
-    vatRate = existing.vatRate, feeData, periodLabel,
+    vatRate = existing.vatRate, feeData, periodLabel, invoiceNumber,
   } = body
+
+  // If invoice number is being changed, ensure it's unique
+  if (invoiceNumber && invoiceNumber !== existing.invoiceNumber) {
+    const dup = await prisma.invoice.findUnique({ where: { invoiceNumber } })
+    if (dup) return NextResponse.json({ error: `رقم الفاتورة "${invoiceNumber}" مستخدم بالفعل` }, { status: 400 })
+  }
 
   // If items provided, recompute everything and replace items
   if (Array.isArray(items)) {
@@ -55,6 +61,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const invoice = await prisma.invoice.update({
       where: { id: params.id },
       data: {
+        invoiceNumber: invoiceNumber || existing.invoiceNumber,
         customerId: customerId || existing.customerId,
         invoiceType: invoiceType || existing.invoiceType,
         categoryId: categoryId ?? existing.categoryId,
