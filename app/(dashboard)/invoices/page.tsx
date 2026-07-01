@@ -205,11 +205,12 @@ export default function InvoicesPage() {
 
   // Download a blank import template for the chosen invoice type
   function downloadTemplate() {
+    // "Invoice Number" first column — leave empty to auto-generate, or put your old serial to keep it
     let cols: Record<string, any> = {}
-    if (importType === 'MANAGEMENT_FEE') cols = { 'Client Number': '', 'Client Name': '', 'Month': 'MAY', 'Days': 31, 'NAV': 0, 'Fees%': 0.5, 'Date': '', 'VAT%': 5 }
-    else if (importType === 'PERFORMANCE_FEE') cols = { 'Client Number': '', 'Client Name': '', 'Year': '2025', 'Fees': 0, 'Date': '', 'VAT%': 5 }
-    else if (importType === 'DEBIT_NOTE' || importType === 'CREDIT_NOTE') cols = { 'Client Number': '', 'Client Name': '', 'Invoice No': '', 'Amount': 0, 'Date': '', 'VAT%': 5 }
-    else cols = { 'Client Number': '', 'Client Name': '', 'Description': '', 'Amount': 0, 'Date': '', 'VAT%': 5 }
+    if (importType === 'MANAGEMENT_FEE') cols = { 'Invoice Number': '', 'Client Number': '', 'Client Name': '', 'Month': 'MAY', 'Days': 31, 'NAV': 0, 'Fees%': 0.5, 'Date': '', 'VAT%': 5 }
+    else if (importType === 'PERFORMANCE_FEE') cols = { 'Invoice Number': '', 'Client Number': '', 'Client Name': '', 'Year': '2025', 'Fees': 0, 'Date': '', 'VAT%': 5 }
+    else if (importType === 'DEBIT_NOTE' || importType === 'CREDIT_NOTE') cols = { 'Invoice Number': '', 'Client Number': '', 'Client Name': '', 'Invoice No': '', 'Amount': 0, 'Date': '', 'VAT%': 5 }
+    else cols = { 'Invoice Number': '', 'Client Number': '', 'Client Name': '', 'Description': '', 'Amount': 0, 'Date': '', 'VAT%': 5 }
     const ws = XLSX.utils.json_to_sheet([cols])
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, importType)

@@ -105,7 +105,17 @@ export async function POST(req: NextRequest) {
 
       const vatAmount = subtotal * vatRate / 100
       const totalAmount = subtotal + vatAmount
-      const invoiceNumber = `${PREFIX[type]}-${ym}-${String(seq++).padStart(4, '0')}`
+
+      // Invoice number: use the one from the sheet (old serial) if provided; else auto-generate
+      const providedNumber = pick(row, ['Invoice Number', 'رقم الفاتورة', 'Ref Number (Automated)', 'Ref Number', 'invoiceNumber'])
+      let invoiceNumber: string
+      if (providedNumber && String(providedNumber).trim()) {
+        invoiceNumber = String(providedNumber).trim()
+        const exists = await prisma.invoice.findUnique({ where: { invoiceNumber } })
+        if (exists) { skipped++; errors.push(`Row ${idx + 2}: invoice number "${invoiceNumber}" already exists`); continue }
+      } else {
+        invoiceNumber = `${PREFIX[type]}-${ym}-${String(seq++).padStart(4, '0')}`
+      }
 
       const invoice = await prisma.invoice.create({
         data: {
