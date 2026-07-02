@@ -4,33 +4,57 @@ import Header from '@/components/layout/Header'
 import Link from 'next/link'
 import { ArrowRight, Upload, Download, CheckCircle, XCircle, FileSpreadsheet } from 'lucide-react'
 import toast from 'react-hot-toast'
+import * as XLSX from 'xlsx'
 
 interface ImportResult {
   created: number
+  updated?: number
   skipped: number
   errors: string[]
 }
 
 export default function ImportCustomersPage() {
   const [loading, setLoading] = useState(false)
+  const [progress, setProgress] = useState('')
   const [result, setResult] = useState<ImportResult | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Parse in the browser and upload in small batches — large files no longer
+  // hit the serverless 10s timeout.
   async function handleFile(file: File) {
     if (!file.name.match(/\.(xlsx|csv|xls)$/i)) return toast.error('يرجى رفع ملف Excel أو CSV')
     setLoading(true)
     setResult(null)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/import', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (!res.ok) return toast.error(data.error || 'فشل الاستيراد')
-      setResult(data)
-      toast.success(`تم استيراد ${data.created} عميل بنجاح`)
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const allRows: any[] = XLSX.utils.sheet_to_json(ws, { raw: false })
+      if (!allRows.length) return toast.error('الملف فارغ')
+
+      const BATCH = 20
+      let created = 0, updated = 0, skipped = 0
+      const errors: string[] = []
+      for (let i = 0; i < allRows.length; i += BATCH) {
+        setProgress(`${Math.min(i + BATCH, allRows.length)} / ${allRows.length}`)
+        const res = await fetch('/api/import', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rows: allRows.slice(i, i + BATCH) }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) { errors.push(data.error || `دفعة ${i / BATCH + 1} فشلت`); continue }
+        created += data.created || 0
+        updated += data.updated || 0
+        skipped += data.skipped || 0
+        if (data.errors?.length) errors.push(...data.errors)
+      }
+      setResult({ created, updated, skipped, errors })
+      toast.success(`تم: إضافة ${created}، تحديث ${updated}`)
+    } catch (err: any) {
+      toast.error(err?.message || 'فشل الاستيراد')
     } finally {
       setLoading(false)
+      setProgress('')
     }
   }
 
@@ -79,7 +103,7 @@ export default function ImportCustomersPage() {
           {loading && (
             <div className="mt-4 flex items-center gap-3 text-primary-600">
               <div className="animate-spin h-5 w-5 border-2 border-primary-600 border-t-transparent rounded-full" />
-              <span className="text-sm font-medium">جاري معالجة الملف...</span>
+              <span className="text-sm font-medium">جاري الرفع... {progress}</span>
             </div>
           )}
         </div>
@@ -88,11 +112,16 @@ export default function ImportCustomersPage() {
         {result && (
           <div className="card">
             <h3 className="font-bold text-gray-800 mb-4">نتيجة الاستيراد</h3>
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="bg-green-50 rounded-xl p-4 text-center">
                 <CheckCircle size={24} className="text-green-600 mx-auto mb-1" />
                 <p className="text-2xl font-bold text-green-700">{result.created}</p>
-                <p className="text-sm text-green-600">عميل تم إضافته</p>
+                <p className="text-sm text-green-600">عميل جديد</p>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-4 text-center">
+                <CheckCircle size={24} className="text-blue-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-blue-700">{result.updated || 0}</p>
+                <p className="text-sm text-blue-600">عميل تم تحديثه</p>
               </div>
               <div className="bg-yellow-50 rounded-xl p-4 text-center">
                 <XCircle size={24} className="text-yellow-600 mx-auto mb-1" />

@@ -24,19 +24,37 @@ export async function POST(req: NextRequest) {
   const role = (session.user as any).role as Role
   if (!hasPermission(role, 'CREATE_INVOICE')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const formData = await req.formData()
-  const file = formData.get('file') as File
-  const type = (formData.get('type') as string) || 'REGULAR'
-  if (!file) return NextResponse.json({ error: 'لم يتم رفع ملف' }, { status: 400 })
-
-  const buffer = Buffer.from(await file.arrayBuffer())
-  const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true })
-  const sheet = workbook.Sheets[workbook.SheetNames[0]]
-  const rows = XLSX.utils.sheet_to_json(sheet) as any[]
+  // Accept either a small JSON batch { type, rows } (preferred — avoids serverless timeout)
+  // or a legacy multipart file upload.
+  let type = 'REGULAR'
+  let rows: any[] = []
+  const ct = req.headers.get('content-type') || ''
+  if (ct.includes('application/json')) {
+    const body = await req.json()
+    type = body.type || 'REGULAR'
+    rows = Array.isArray(body.rows) ? body.rows : []
+  } else {
+    const formData = await req.formData()
+    const file = formData.get('file') as File
+    type = (formData.get('type') as string) || 'REGULAR'
+    if (!file) return NextResponse.json({ error: 'لم يتم رفع ملف' }, { status: 400 })
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true })
+    const sheet = workbook.Sheets[workbook.SheetNames[0]]
+    rows = XLSX.utils.sheet_to_json(sheet) as any[]
+  }
 
   const isFee = type === 'MANAGEMENT_FEE' || type === 'PERFORMANCE_FEE'
   const isPerf = type === 'PERFORMANCE_FEE'
   const isNote = type === 'DEBIT_NOTE' || type === 'CREDIT_NOTE'
+
+  // Preload banks once (case-insensitive lookup) — avoids a query per row
+  const allBanks = await prisma.bankAccount.findMany()
+  const bankByName = new Map<string, string>()
+  for (const b of allBanks) {
+    if (b.bankName) bankByName.set(b.bankName.trim().toLowerCase(), b.id)
+    if (b.bankNameAr) bankByName.set(b.bankNameAr.trim().toLowerCase(), b.id)
+  }
 
   // sequence start
   const now = new Date()
@@ -123,12 +141,11 @@ export async function POST(req: NextRequest) {
       const vatAmount = subtotal * vatRate / 100
       const totalAmount = subtotal + vatAmount
 
-      // Optional bank (match by name) + notes
+      // Optional bank (case-insensitive match from preloaded map) + notes
       const bankName = pick(row, ['Bank Name', 'اسم البنك', 'Bank', 'bankName'])
       let bankAccountId: string | null = null
       if (bankName && String(bankName).trim()) {
-        const bank = await prisma.bankAccount.findFirst({ where: { OR: [{ bankName: String(bankName).trim() }, { bankNameAr: String(bankName).trim() }] } })
-        if (bank) bankAccountId = bank.id
+        bankAccountId = bankByName.get(String(bankName).trim().toLowerCase()) || null
       }
       const notesVal = pick(row, ['Notes', 'ملاحظات', 'notes'])
       const notes = notesVal != null && String(notesVal).trim() !== '' ? String(notesVal).trim() : null

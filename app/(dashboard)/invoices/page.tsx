@@ -229,20 +229,46 @@ export default function InvoicesPage() {
     XLSX.writeFile(wb, `template-${importType}.xlsx`)
   }
 
+  // Parse the Excel in the browser and upload in small batches — avoids the
+  // 10s serverless timeout that made large files hang on "loading" forever.
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setImporting(true)
+    const progressToast = toast.loading(lang === 'en' ? 'Reading file...' : 'جاري قراءة الملف...')
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('type', importType)
-      const res = await fetch('/api/invoices/import', { method: 'POST', body: fd })
-      const data = await res.json()
-      if (!res.ok) { toast.error(data.error || (lang === 'en' ? 'Import failed' : 'فشل الاستيراد')); return }
-      toast.success(lang === 'en' ? `Created ${data.created}, skipped ${data.skipped}` : `تم إنشاء ${data.created}، تخطّي ${data.skipped}`)
-      if (data.errors?.length) console.warn('Import errors:', data.errors)
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      // raw:false → dates/numbers come as displayed strings, safe for JSON
+      const allRows: any[] = XLSX.utils.sheet_to_json(ws, { raw: false })
+      if (!allRows.length) { toast.error(lang === 'en' ? 'File is empty' : 'الملف فارغ', { id: progressToast }); return }
+
+      const BATCH = 15
+      let created = 0, skipped = 0
+      const errors: string[] = []
+      for (let i = 0; i < allRows.length; i += BATCH) {
+        const batch = allRows.slice(i, i + BATCH)
+        toast.loading(lang === 'en'
+          ? `Uploading ${Math.min(i + BATCH, allRows.length)} / ${allRows.length}...`
+          : `جاري الرفع ${Math.min(i + BATCH, allRows.length)} / ${allRows.length}...`, { id: progressToast })
+        const res = await fetch('/api/invoices/import', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: importType, rows: batch }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) { errors.push(data.error || `Batch ${i / BATCH + 1} failed`); continue }
+        created += data.created || 0
+        skipped += data.skipped || 0
+        if (data.errors?.length) errors.push(...data.errors)
+      }
+      toast.success(lang === 'en' ? `Created ${created}, skipped ${skipped}` : `تم إنشاء ${created}، تخطّي ${skipped}`, { id: progressToast, duration: 6000 })
+      if (errors.length) {
+        toast.error(errors.slice(0, 5).join('\n'), { duration: 9000, style: { whiteSpace: 'pre-line', maxWidth: 550 } })
+        console.warn('Import errors:', errors)
+      }
       fetchInvoices()
+    } catch (err: any) {
+      toast.error(err?.message || (lang === 'en' ? 'Import failed' : 'فشل الاستيراد'), { id: progressToast })
     } finally { setImporting(false); e.target.value = '' }
   }
 

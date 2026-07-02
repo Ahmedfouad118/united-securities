@@ -14,16 +14,24 @@ export async function POST(req: NextRequest) {
   if (!hasPermission(role, 'IMPORT_CUSTOMERS'))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const formData = await req.formData()
-  const file = formData.get('file') as File
-  if (!file) return NextResponse.json({ error: 'لم يتم رفع ملف' }, { status: 400 })
-
-  const buffer = Buffer.from(await file.arrayBuffer())
-  const workbook = XLSX.read(buffer, { type: 'buffer' })
-  const sheet = workbook.Sheets[workbook.SheetNames[0]]
-  const rows = XLSX.utils.sheet_to_json(sheet) as any[]
+  // Accept a JSON batch { rows } (preferred — avoids serverless timeout) or a file upload
+  let rows: any[] = []
+  const ct = req.headers.get('content-type') || ''
+  if (ct.includes('application/json')) {
+    const body = await req.json()
+    rows = Array.isArray(body.rows) ? body.rows : []
+  } else {
+    const formData = await req.formData()
+    const file = formData.get('file') as File
+    if (!file) return NextResponse.json({ error: 'لم يتم رفع ملف' }, { status: 400 })
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true })
+    const sheet = workbook.Sheets[workbook.SheetNames[0]]
+    rows = XLSX.utils.sheet_to_json(sheet) as any[]
+  }
 
   let created = 0
+  let updated = 0
   let skipped = 0
   const errors: string[] = []
 
@@ -43,38 +51,53 @@ export async function POST(req: NextRequest) {
     const clientNumber = g(row, ['رقم العميل', 'Client Number', 'clientNumber'])
     const shareholderNumber = g(row, ['رقم المساهم', 'Shareholder Number', 'shareholderNumber'])
     const address = g(row, ['العنوان', 'Address', 'address'])
-    const openingBalance = parseFloat(String(g(row, ['الرصيد الافتتاحي', 'opening_balance', 'Opening Balance']) ?? '0')) || 0
+    // strip commas so "5,000" parses as 5000, not 5
+    const openingBalance = parseFloat(String(g(row, ['الرصيد الافتتاحي', 'opening_balance', 'Opening Balance']) ?? '0').replace(/,/g, '')) || 0
 
     if (!name) { skipped++; continue }
     const s = (v: any) => v != null && String(v).trim() !== '' ? String(v).trim() : null
 
     try {
-      const customer = await prisma.customer.create({
-        data: {
-          name: String(name).trim(),
-          nameAr: s(nameAr), phone: s(phone), email: s(email),
-          vatNumber: s(vatNumber), nin: s(nin), accountNumber: s(accountNumber),
-          clientNumber: s(clientNumber), shareholderNumber: s(shareholderNumber), address: s(address),
-          openingBalance,
-          currentBalance: openingBalance,
-        },
-      })
+      // Upsert: if the customer already exists (auto-created by invoice import),
+      // UPDATE it — filling details and adjusting balances by the opening delta.
+      let existing = null
+      if (s(clientNumber)) existing = await prisma.customer.findFirst({ where: { clientNumber: s(clientNumber)! } })
+      if (!existing) existing = await prisma.customer.findFirst({ where: { name: String(name).trim() } })
 
-      if (openingBalance > 0) {
-        await prisma.transaction.create({
+      const fields = {
+        name: String(name).trim(),
+        nameAr: s(nameAr), phone: s(phone), email: s(email),
+        vatNumber: s(vatNumber), nin: s(nin), accountNumber: s(accountNumber),
+        clientNumber: s(clientNumber), shareholderNumber: s(shareholderNumber), address: s(address),
+      }
+
+      if (existing) {
+        const delta = openingBalance - Number(existing.openingBalance || 0)
+        await prisma.customer.update({
+          where: { id: existing.id },
           data: {
-            customerId: customer.id,
-            type: 'OPENING_BALANCE',
-            amount: openingBalance,
-            notes: 'رصيد افتتاحي مستورد',
+            // only overwrite fields that have a value in the sheet
+            ...Object.fromEntries(Object.entries(fields).filter(([, v]) => v != null && v !== '')),
+            openingBalance,
+            currentBalance: Number(existing.currentBalance || 0) + delta,
           },
         })
+        updated++
+      } else {
+        const customer = await prisma.customer.create({
+          data: { ...fields, openingBalance, currentBalance: openingBalance },
+        })
+        if (openingBalance > 0) {
+          await prisma.transaction.create({
+            data: { customerId: customer.id, type: 'OPENING_BALANCE', amount: openingBalance, notes: 'رصيد افتتاحي مستورد' },
+          })
+        }
+        created++
       }
-      created++
     } catch (e: any) {
-      errors.push(`خطأ في السطر ${created + skipped + 1}: ${e.message}`)
+      errors.push(`خطأ في السطر ${created + updated + skipped + 1}: ${e.message}`)
     }
   }
 
-  return NextResponse.json({ created, skipped, errors })
+  return NextResponse.json({ created, updated, skipped, errors })
 }

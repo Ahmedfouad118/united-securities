@@ -46,6 +46,7 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [selected, setSelected] = useState<string[]>([])
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true)
@@ -66,10 +67,30 @@ export default function CustomersPage() {
     const res = await fetch(`/api/customers/${id}`, { method: 'DELETE' })
     if (res.ok) {
       toast.success(L('تم حذف العميل', 'Customer deleted'))
+      setSelected(s => s.filter(x => x !== id))
       fetchCustomers()
     } else {
       toast.error(L('فشل الحذف', 'Delete failed'))
     }
+  }
+
+  function toggleSelect(id: string) {
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+  function toggleSelectAll() {
+    setSelected(prev => prev.length === customers.length ? [] : customers.map(c => c.id))
+  }
+
+  async function bulkDelete() {
+    if (!selected.length) return
+    if (!confirm(L(`حذف ${selected.length} عميل محدد؟ لا يمكن التراجع.`, `Delete ${selected.length} selected customer(s)? This cannot be undone.`))) return
+    const res = await fetch('/api/customers/bulk-delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: selected }) })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) { toast.error(data.error || L('فشل الحذف', 'Delete failed')); return }
+    toast.success(L(`تم حذف ${data.deleted}${data.skipped?.length ? `، تخطّي ${data.skipped.length} (لهم فواتير)` : ''}`, `Deleted ${data.deleted}${data.skipped?.length ? `, ${data.skipped.length} skipped (have invoices)` : ''}`), { duration: 6000 })
+    if (data.skipped?.length) console.warn('Skipped:', data.skipped)
+    setSelected([])
+    fetchCustomers()
   }
 
   const totalPages = Math.ceil(total / 20)
@@ -90,6 +111,11 @@ export default function CustomersPage() {
             />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {selected.length > 0 && hasPermission(role, 'DELETE_CUSTOMER') && (
+              <button onClick={bulkDelete} className="btn-primary bg-red-600 hover:bg-red-700">
+                <Trash2 size={16} /> {L(`حذف (${selected.length})`, `Delete (${selected.length})`)}
+              </button>
+            )}
             <button onClick={downloadTemplate} className="btn-secondary"><Download size={16} /> {L('نموذج', 'Template')}</button>
             <button onClick={exportCustomers} className="btn-secondary"><FileDown size={16} /> {L('تصدير', 'Export')}</button>
             {hasPermission(role, 'IMPORT_CUSTOMERS') && (
@@ -134,6 +160,9 @@ export default function CustomersPage() {
               <table className="w-full">
                 <thead>
                   <tr>
+                    <th className="table-header w-10 text-center">
+                      <input type="checkbox" className="accent-primary-600" checked={customers.length > 0 && selected.length === customers.length} onChange={toggleSelectAll} />
+                    </th>
                     {[L('الاسم', 'Name'), L('الهاتف', 'Phone'), L('البريد الإلكتروني', 'Email'), L('الرصيد الافتتاحي', 'Opening Balance'), L('الرصيد الحالي', 'Current Balance'), L('إجراءات', 'Actions')].map(h => (
                       <th key={h} className="table-header text-start">{h}</th>
                     ))}
@@ -141,7 +170,10 @@ export default function CustomersPage() {
                 </thead>
                 <tbody>
                   {customers.map((c) => (
-                    <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={c.id} className={`hover:bg-gray-50 transition-colors ${selected.includes(c.id) ? 'bg-primary-50/40' : ''}`}>
+                      <td className="table-cell text-center">
+                        <input type="checkbox" className="accent-primary-600" checked={selected.includes(c.id)} onChange={() => toggleSelect(c.id)} />
+                      </td>
                       <td className="table-cell font-semibold text-gray-800">{c.name}</td>
                       <td className="table-cell">
                         {c.phone ? (
