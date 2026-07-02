@@ -90,12 +90,11 @@ export default function InvoicesPage() {
   async function bulkDelete() {
     if (!selected.length) return
     if (!confirm(lang === 'en' ? `Delete ${selected.length} selected invoice(s)? This cannot be undone.` : `حذف ${selected.length} فاتورة محددة؟ لا يمكن التراجع.`)) return
-    let ok = 0, fail = 0
-    for (const id of selected) {
-      const res = await fetch(`/api/invoices/${id}`, { method: 'DELETE' })
-      res.ok ? ok++ : fail++
-    }
-    toast.success(lang === 'en' ? `Deleted ${ok}${fail ? `, ${fail} failed` : ''}` : `تم حذف ${ok}${fail ? `، فشل ${fail}` : ''}`)
+    const res = await fetch('/api/invoices/bulk-delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: selected }) })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) { toast.error(data.error || (lang === 'en' ? 'Delete failed' : 'فشل الحذف')); return }
+    toast.success(lang === 'en' ? `Deleted ${data.deleted}${data.skipped?.length ? `, ${data.skipped.length} skipped` : ''}` : `تم حذف ${data.deleted}${data.skipped?.length ? `، تخطّي ${data.skipped.length}` : ''}`)
+    if (data.skipped?.length) console.warn('Skipped:', data.skipped)
     setSelected([])
     fetchInvoices()
   }
