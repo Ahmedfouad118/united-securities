@@ -62,28 +62,35 @@ export async function GET(req: NextRequest) {
   }
 
   // ---- SUMMARY / BALANCES: one row per customer ----
-  const customers = await prisma.customer.findMany({ orderBy: { name: 'asc' } })
-  const rows = await Promise.all(customers.map(async c => {
-    const inv = await prisma.invoice.aggregate({
-      where: { customerId: c.id, isCanceled: false, invoiceType: { not: 'CREDIT_NOTE' }, ...(hasDate ? { date: dateFilter } : {}) },
-      _sum: { totalAmount: true, paidAmount: true },
-    })
-    const credits = await prisma.invoice.aggregate({
-      where: { customerId: c.id, isCanceled: false, invoiceType: 'CREDIT_NOTE', ...(hasDate ? { date: dateFilter } : {}) },
-      _sum: { totalAmount: true },
-    })
-    const receipts = await prisma.receipt.aggregate({
-      where: { customerId: c.id, ...(hasDate ? { date: dateFilter } : {}) }, _sum: { amount: true },
-    })
-    const invoiced = Number(inv._sum.totalAmount || 0)
-    const creditNotes = Number(credits._sum.totalAmount || 0)
-    const paid = Number(receipts._sum.amount || 0)
-    const balance = Number(c.currentBalance || 0)
-    return {
-      id: c.id, name: c.name, clientNumber: c.clientNumber, accountNumber: c.accountNumber,
-      openingBalance: Number(c.openingBalance || 0),
-      invoiced, creditNotes, paid, balance,
-    }
+  // Bulk-fetch everything in 3 queries (robust on pooled connections), then aggregate in memory.
+  const [customers, invoices, receipts] = await Promise.all([
+    prisma.customer.findMany({ orderBy: { name: 'asc' } }),
+    prisma.invoice.findMany({
+      where: { isCanceled: false, ...(hasDate ? { date: dateFilter } : {}) },
+      select: { customerId: true, invoiceType: true, totalAmount: true },
+    }),
+    prisma.receipt.findMany({
+      where: { ...(hasDate ? { date: dateFilter } : {}) },
+      select: { customerId: true, amount: true },
+    }),
+  ])
+
+  const invByCust: Record<string, number> = {}
+  const creditByCust: Record<string, number> = {}
+  for (const i of invoices) {
+    if (i.invoiceType === 'CREDIT_NOTE') creditByCust[i.customerId] = (creditByCust[i.customerId] || 0) + Number(i.totalAmount)
+    else invByCust[i.customerId] = (invByCust[i.customerId] || 0) + Number(i.totalAmount)
+  }
+  const paidByCust: Record<string, number> = {}
+  for (const r of receipts) paidByCust[r.customerId] = (paidByCust[r.customerId] || 0) + Number(r.amount)
+
+  const rows = customers.map(c => ({
+    id: c.id, name: c.name, clientNumber: c.clientNumber, accountNumber: c.accountNumber,
+    openingBalance: Number(c.openingBalance || 0),
+    invoiced: invByCust[c.id] || 0,
+    creditNotes: creditByCust[c.id] || 0,
+    paid: paidByCust[c.id] || 0,
+    balance: Number(c.currentBalance || 0),
   }))
 
   const filtered = mode === 'balances' ? rows.filter(r => Math.abs(r.balance) > 0.001) : rows

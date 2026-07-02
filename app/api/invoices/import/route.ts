@@ -123,6 +123,16 @@ export async function POST(req: NextRequest) {
       const vatAmount = subtotal * vatRate / 100
       const totalAmount = subtotal + vatAmount
 
+      // Optional bank (match by name) + notes
+      const bankName = pick(row, ['Bank Name', 'اسم البنك', 'Bank', 'bankName'])
+      let bankAccountId: string | null = null
+      if (bankName && String(bankName).trim()) {
+        const bank = await prisma.bankAccount.findFirst({ where: { OR: [{ bankName: String(bankName).trim() }, { bankNameAr: String(bankName).trim() }] } })
+        if (bank) bankAccountId = bank.id
+      }
+      const notesVal = pick(row, ['Notes', 'ملاحظات', 'notes'])
+      const notes = notesVal != null && String(notesVal).trim() !== '' ? String(notesVal).trim() : null
+
       // Invoice number: use the one from the sheet (old serial) if provided; else auto-generate
       const providedNumber = pick(row, ['Invoice Number', 'رقم الفاتورة', 'Ref Number (Automated)', 'Ref Number', 'invoiceNumber'])
       let invoiceNumber: string
@@ -137,6 +147,7 @@ export async function POST(req: NextRequest) {
       const invoice = await prisma.invoice.create({
         data: {
           invoiceNumber, invoiceType: type, customerId: customer.id, date,
+          bankAccountId, notes,
           subtotal, vatRate, vatAmount, totalAmount, paidAmount: 0, remaining: totalAmount,
           status: 'UNPAID', approvalStatus: isAdmin ? 'APPROVED' : 'PENDING',
           approvedById: isAdmin ? (session.user as any).id : null, approvedAt: isAdmin ? new Date() : null,
