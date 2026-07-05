@@ -307,17 +307,27 @@ function ServiceFeeTemplate({ inv }: { inv: any }) {
         ))}
       </div>
 
-      {/* Totals */}
-      <table style={{ width: 300, marginLeft: 'auto', borderCollapse: 'collapse', marginBottom: 20 }}>
-        <tbody>
-          <tr><td style={{ padding: '5px 10px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>Service Fees</td><td style={{ padding: '5px 10px', border: '1px solid #ddd', textAlign: 'right' }}>{fmt(subtotal)}</td></tr>
-          <tr><td style={{ padding: '5px 10px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>VAT ({vatRate}%)</td><td style={{ padding: '5px 10px', border: '1px solid #ddd', textAlign: 'right' }}>{fmt(vatAmt)}</td></tr>
-          <tr style={{ backgroundColor: '#1e3a5f', color: '#fff' }}>
-            <td style={{ padding: '6px 10px', fontWeight: 700 }}>NET Service fees Value</td>
-            <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700 }}>RO &nbsp; {fmt(total)}</td>
-          </tr>
-        </tbody>
-      </table>
+      {/* Totals — foreign-currency invoices show the original currency (stored values are OMR) */}
+      {(() => {
+        const cur = inv.currency && inv.currency !== 'OMR' ? inv.currency : null
+        const rate = Number(inv.exchangeRate) > 0 ? Number(inv.exchangeRate) : 1
+        const fx = (v: number) => cur ? fmt(v / rate) : fmt(v)
+        return (
+          <table style={{ width: 300, marginLeft: 'auto', borderCollapse: 'collapse', marginBottom: 20 }}>
+            <tbody>
+              <tr><td style={{ padding: '5px 10px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>Service Fees</td><td style={{ padding: '5px 10px', border: '1px solid #ddd', textAlign: 'right' }}>{fx(subtotal)}</td></tr>
+              <tr><td style={{ padding: '5px 10px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>VAT ({vatRate}%)</td><td style={{ padding: '5px 10px', border: '1px solid #ddd', textAlign: 'right' }}>{fx(vatAmt)}</td></tr>
+              <tr style={{ backgroundColor: '#1e3a5f', color: '#fff' }}>
+                <td style={{ padding: '6px 10px', fontWeight: 700 }}>NET Service fees Value</td>
+                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700 }}>{cur || 'RO'} &nbsp; {fx(total)}</td>
+              </tr>
+              {cur && (
+                <tr><td style={{ padding: '4px 10px', border: '1px solid #ddd', fontSize: 10, color: '#777' }}>Equivalent (OMR)</td><td style={{ padding: '4px 10px', border: '1px solid #ddd', textAlign: 'right', fontSize: 10, color: '#777' }}>{fmt(total)}</td></tr>
+              )}
+            </tbody>
+          </table>
+        )
+      })()}
 
       {/* Bank Details */}
       {inv.bankAccount && (

@@ -95,16 +95,20 @@ export async function POST(req: NextRequest) {
   const {
     customerId, invoiceType = 'REGULAR', categoryId, bankAccountId,
     items, notes, date, dueDate, vatRate = 5, referenceInvoiceId,
-    feeData, periodLabel,
+    feeData, periodLabel, currency = 'OMR', exchangeRate = 1,
     // legacy
     monthData,
   } = body
 
+  // Foreign-currency invoices: amounts arrive in the invoice currency; store the
+  // OMR equivalent (rate = OMR per 1 unit) so balances/reports stay in OMR.
+  const fxRate = currency !== 'OMR' && Number(exchangeRate) > 0 ? Number(exchangeRate) : 1
+
   if (!customerId || !items?.length)
     return NextResponse.json({ error: 'بيانات غير مكتملة' }, { status: 400 })
 
-  const subtotal = items.reduce((s: number, i: any) => s + i.quantity * i.unitPrice, 0)
-  const vatAmount = items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice * (i.vatRate ?? vatRate) / 100), 0)
+  const subtotal = items.reduce((s: number, i: any) => s + i.quantity * i.unitPrice, 0) * fxRate
+  const vatAmount = items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice * (i.vatRate ?? vatRate) / 100), 0) * fxRate
   const totalAmount = subtotal + vatAmount
 
   const isAdmin = role === 'ADMIN'
@@ -132,18 +136,20 @@ export async function POST(req: NextRequest) {
       referenceInvoiceId: referenceInvoiceId || null,
       feeData: feeData || (monthData ? JSON.stringify(monthData) : null),
       periodLabel: periodLabel || null,
+      currency: currency || 'OMR',
+      exchangeRate: fxRate,
       notes: notes || null,
       createdById: (session.user as any).id,
       items: {
         create: items.map((i: any) => {
-          const itemSubtotal = i.quantity * i.unitPrice
+          const itemSubtotal = i.quantity * i.unitPrice * fxRate
           const itemVatRate = i.vatRate ?? vatRate
           const itemVat = itemSubtotal * itemVatRate / 100
           return {
             serviceTypeId: i.serviceTypeId || null,
             description: i.description,
             quantity: i.quantity,
-            unitPrice: i.unitPrice,
+            unitPrice: i.unitPrice * fxRate,
             subtotal: itemSubtotal,
             vatRate: itemVatRate,
             vatAmount: itemVat,

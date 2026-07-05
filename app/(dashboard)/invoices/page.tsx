@@ -191,28 +191,35 @@ export default function InvoicesPage() {
     window.open(`/invoices/bulk?ids=${ids.join(',')}`, '_blank')
   }
 
-  // Word export — generates a .doc of selected/filtered invoices (table format)
-  function exportWord() {
+  // Word export — downloads the selected/filtered invoices in the FULL invoice
+  // layout (same as print) as an editable .doc, one invoice per page.
+  async function exportWord() {
     const list = selected.length ? invoices.filter(i => selected.includes(i.id)) : invoices
     if (!list.length) return toast.error(lang === 'en' ? 'No invoices' : 'لا توجد فواتير')
-    const rowsHtml = list.map(inv => `<tr>
-      <td>${inv.invoiceNumber}</td><td>${TYPE_LABELS[inv.invoiceType] || inv.invoiceType}</td>
-      <td>${inv.customer?.name || ''}</td><td>${formatDate(inv.date, lang)}</td>
-      <td style="text-align:right">${Number(inv.totalAmount).toFixed(3)}</td>
-      <td style="text-align:right">${Number(inv.remaining).toFixed(3)}</td></tr>`).join('')
-    const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'><head><meta charset='utf-8'></head>
-      <body><h2 style='font-family:Arial'>${lang === 'en' ? 'Invoices' : 'الفواتير'}</h2>
-      <table border='1' cellspacing='0' cellpadding='5' style='border-collapse:collapse;font-family:Arial;font-size:12px;width:100%'>
-      <thead><tr style='background:#1e3a5f;color:#fff'>
-        <th>${lang === 'en' ? 'Invoice No' : 'رقم الفاتورة'}</th><th>${lang === 'en' ? 'Type' : 'النوع'}</th>
-        <th>${lang === 'en' ? 'Customer' : 'العميل'}</th><th>${lang === 'en' ? 'Date' : 'التاريخ'}</th>
-        <th>${lang === 'en' ? 'Total' : 'الإجمالي'}</th><th>${lang === 'en' ? 'Remaining' : 'المتبقي'}</th></tr></thead>
-      <tbody>${rowsHtml}</tbody></table></body></html>`
-    const blob = new Blob(['﻿', html], { type: 'application/msword' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `invoices-${new Date().toISOString().split('T')[0]}.doc`; a.click()
-    URL.revokeObjectURL(url)
+    const t = toast.loading(lang === 'en' ? `Preparing ${list.length} invoice(s)...` : `جاري تجهيز ${list.length} فاتورة...`)
+    try {
+      const parts: string[] = []
+      for (const inv of list) {
+        const res = await fetch(`/api/invoices/${inv.id}/html`)
+        if (!res.ok) continue
+        let html = await res.text()
+        // keep only the body content for embedding
+        const m = html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
+        parts.push(m ? m[1] : html)
+      }
+      if (!parts.length) { toast.error(lang === 'en' ? 'Failed' : 'فشل', { id: t }); return }
+      const doc = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+        <head><meta charset='utf-8'><style>@page{size:A4;margin:15mm} body{font-family:Arial}</style></head>
+        <body>${parts.join(`<br clear=all style='page-break-before:always'>`)}</body></html>`
+      const blob = new Blob(['﻿', doc], { type: 'application/msword' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `invoices-${new Date().toISOString().split('T')[0]}.doc`; a.click()
+      URL.revokeObjectURL(url)
+      toast.success(lang === 'en' ? `Downloaded ${parts.length} invoice(s) as Word` : `تم تنزيل ${parts.length} فاتورة Word`, { id: t })
+    } catch {
+      toast.error(lang === 'en' ? 'Failed' : 'فشل', { id: t })
+    }
   }
 
   // Download a blank import template for the chosen invoice type

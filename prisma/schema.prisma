@@ -147,6 +147,8 @@ model Invoice {
   referenceInvoiceId String?
   feeData           String?
   periodLabel       String?
+  currency          String          @default("OMR")
+  exchangeRate      Float           @default(1)
   notes             String?
   createdById       String?
   createdByUser     User?           @relation("CreatedBy", fields: [createdById], references: [id])

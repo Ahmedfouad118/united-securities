@@ -19,6 +19,7 @@ const TYPE_OPTS = [
   { value: 'CREDIT_NOTE', ar: 'مذكرة دائن (Credit Note)', en: 'Credit Note' },
 ]
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+const CURRENCIES = ['OMR', 'USD', 'EUR', 'GBP', 'AED', 'SAR', 'QAR', 'KWD', 'BHD']
 
 function n3(x: number) { return (Math.round((x || 0) * 1000) / 1000) }
 
@@ -35,6 +36,7 @@ export default function NewInvoicePage() {
   const [form, setForm] = useState({
     customerId: '', invoiceType: 'REGULAR', categoryId: '', bankAccountId: '',
     date: new Date().toISOString().split('T')[0], dueDate: '', vatRate: 5, notes: '', periodLabel: '',
+    currency: 'OMR', exchangeRate: 1,
   })
   const [items, setItems] = useState<Item[]>([{ description: '', serviceTypeId: '', quantity: 1, unitPrice: 0, vatRate: 5 }])
   const [feeRows, setFeeRows] = useState<FeeRow[]>([{ period: 'MAY', days: 31, nav: 0, rate: 0.5, fee: 0 }])
@@ -218,6 +220,23 @@ export default function NewInvoicePage() {
                     placeholder={isPerf ? '2025' : 'May 2026'} />
                 </div>
               )}
+              {isRegular && (
+                <>
+                  <div>
+                    <label className="label">{L('العملة', 'Currency')}</label>
+                    <select className="input" value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value, exchangeRate: e.target.value === 'OMR' ? 1 : f.exchangeRate }))}>
+                      {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  {form.currency !== 'OMR' && (
+                    <div>
+                      <label className="label">{L(`سعر الصرف (OMR لكل 1 ${form.currency})`, `Rate (OMR per 1 ${form.currency})`)}</label>
+                      <input type="number" className="input" min={0} step={0.0001} value={form.exchangeRate}
+                        onChange={e => setForm(f => ({ ...f, exchangeRate: Number(e.target.value) }))} placeholder="0.385" />
+                    </div>
+                  )}
+                </>
+              )}
               <div className="col-span-2">
                 <label className="label">{L('ملاحظات', 'Notes')}</label>
                 <input className="input" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder={L('ملاحظات اختيارية...', 'Optional notes...')} />
@@ -259,7 +278,7 @@ export default function NewInvoicePage() {
                   </div>
                 ))}
               </div>
-              <Totals subtotal={subtotal} vatAmount={vatAmount} total={total} vatRate={form.vatRate} L={L} />
+              <Totals subtotal={subtotal} vatAmount={vatAmount} total={total} vatRate={form.vatRate} L={L} currency={form.currency} rate={form.exchangeRate} />
             </div>
           )}
 
@@ -343,13 +362,19 @@ export default function NewInvoicePage() {
   )
 }
 
-function Totals({ subtotal, vatAmount, total, vatRate, L }: any) {
+function Totals({ subtotal, vatAmount, total, vatRate, L, currency = 'OMR', rate = 1 }: any) {
+  const cur = currency || 'OMR'
   return (
     <div className="mt-5 border-t pt-4 flex justify-end">
-      <div className="w-64 space-y-2 text-sm">
-        <div className="flex justify-between text-gray-600"><span>{L('المجموع الفرعي:', 'Subtotal:')}</span><span className="font-semibold" dir="ltr">{subtotal.toFixed(3)} OMR</span></div>
-        <div className="flex justify-between text-gray-600"><span>{L('الضريبة', 'VAT')} ({vatRate}%):</span><span className="font-semibold" dir="ltr">{vatAmount.toFixed(3)} OMR</span></div>
-        <div className="flex justify-between font-bold text-gray-800 text-base border-t pt-2"><span>{L('الإجمالي:', 'Total:')}</span><span className="text-primary-600" dir="ltr">{total.toFixed(3)} OMR</span></div>
+      <div className="w-72 space-y-2 text-sm">
+        <div className="flex justify-between text-gray-600"><span>{L('المجموع الفرعي:', 'Subtotal:')}</span><span className="font-semibold" dir="ltr">{subtotal.toFixed(3)} {cur}</span></div>
+        <div className="flex justify-between text-gray-600"><span>{L('الضريبة', 'VAT')} ({vatRate}%):</span><span className="font-semibold" dir="ltr">{vatAmount.toFixed(3)} {cur}</span></div>
+        <div className="flex justify-between font-bold text-gray-800 text-base border-t pt-2"><span>{L('الإجمالي:', 'Total:')}</span><span className="text-primary-600" dir="ltr">{total.toFixed(3)} {cur}</span></div>
+        {cur !== 'OMR' && rate > 0 && (
+          <div className="flex justify-between text-gray-500 text-xs bg-gray-50 rounded-lg px-2 py-1.5">
+            <span>{L('ما يعادل بالريال:', 'Equivalent OMR:')}</span><span className="font-semibold" dir="ltr">{(total * rate).toFixed(3)} OMR</span>
+          </div>
+        )}
       </div>
     </div>
   )
