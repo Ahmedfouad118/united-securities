@@ -455,8 +455,14 @@ function DebitCreditTemplate({ inv }: { inv: any }) {
         )
       })()}
 
+      {/* Invoice notes entered by the user — shown under the totals */}
+      {inv.notes && (
+        <p style={{ fontSize: 12, marginBottom: 16, fontWeight: 600 }}>
+          Notes: <span style={{ fontWeight: 400 }}>{inv.notes}</span>
+        </p>
+      )}
+
       <BankDetails inv={inv} />
-      <Disclaimers inv={inv} />
       <Footer inv={inv} />
     </div>
   )

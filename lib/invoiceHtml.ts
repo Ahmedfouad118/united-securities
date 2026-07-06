@@ -101,10 +101,13 @@ export function renderInvoiceHtml(inv: any, company: any): string {
     </table>`
     })()}
 
+    ${inv.notes ? `<p style="font-size:12px;margin-top:12px"><b>Notes:</b> ${inv.notes}</p>` : ''}
+
     ${bank}
 
-    <p style="font-size:10px;color:#777;font-style:italic;margin-top:14px">Notes: The above clients account with United Securities is ${inv.invoiceType === 'CREDIT_NOTE' ? 'credited' : 'debited'} for the Amounts in Settlement currency at the respective settlement dates.</p>
-    <p style="font-size:10px;color:#777;font-style:italic">Disclaimer: This invoice is computer generated and does not require any signature.</p>
+    ${(inv.invoiceType === 'DEBIT_NOTE' || inv.invoiceType === 'CREDIT_NOTE') ? '' : `
+    <p style="font-size:10px;color:#777;font-style:italic;margin-top:14px">Notes: The above clients account with United Securities is debited for the Amounts in Settlement currency at the respective settlement dates.</p>
+    <p style="font-size:10px;color:#777;font-style:italic">Disclaimer: This invoice is computer generated and does not require any signature.</p>`}
     <hr/>
     <p style="text-align:center;font-size:10px;color:#777">${nameEn}, ${poBox}<br/>Tel: ${phone} | Fax: ${fax} | ${website} | ${email}</p>
   </body></html>`
