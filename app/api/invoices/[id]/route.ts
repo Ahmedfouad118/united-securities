@@ -37,7 +37,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   const {
     customerId, invoiceType, categoryId, bankAccountId, items, notes, date, dueDate,
     vatRate = existing.vatRate, feeData, periodLabel, invoiceNumber,
+    currency = existing.currency || 'OMR', exchangeRate = existing.exchangeRate || 1,
   } = body
+
+  // Amounts arrive in the invoice currency; store the OMR equivalent
+  const fxRate = currency !== 'OMR' && Number(exchangeRate) > 0 ? Number(exchangeRate) : 1
 
   // If invoice number is being changed, ensure it's unique
   if (invoiceNumber && invoiceNumber !== existing.invoiceNumber) {
@@ -52,8 +56,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   try {
   // If items provided, recompute everything and replace items
   if (Array.isArray(items)) {
-    const subtotal = items.reduce((s: number, i: any) => s + i.quantity * i.unitPrice, 0)
-    const vatAmount = items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice * (i.vatRate ?? vatRate) / 100), 0)
+    const subtotal = items.reduce((s: number, i: any) => s + i.quantity * i.unitPrice, 0) * fxRate
+    const vatAmount = items.reduce((s: number, i: any) => s + (i.quantity * i.unitPrice * (i.vatRate ?? vatRate) / 100), 0) * fxRate
     const totalAmount = subtotal + vatAmount
     const newRemaining = totalAmount - existing.paidAmount
 
@@ -78,13 +82,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         status: newRemaining <= 0 ? 'PAID' : existing.paidAmount > 0 ? 'PARTIAL' : 'UNPAID',
         feeData: feeData ?? existing.feeData,
         periodLabel: periodLabel ?? existing.periodLabel,
+        currency, exchangeRate: fxRate,
         notes: notes ?? existing.notes,
         items: {
           create: items.map((i: any) => {
-            const sub = i.quantity * i.unitPrice
+            const sub = i.quantity * i.unitPrice * fxRate
             const vr = i.vatRate ?? vatRate
             const vat = sub * vr / 100
-            return { serviceTypeId: i.serviceTypeId || null, description: i.description, quantity: i.quantity, unitPrice: i.unitPrice, subtotal: sub, vatRate: vr, vatAmount: vat, total: sub + vat }
+            return { serviceTypeId: i.serviceTypeId || null, description: i.description, quantity: i.quantity, unitPrice: i.unitPrice * fxRate, subtotal: sub, vatRate: vr, vatAmount: vat, total: sub + vat }
           }),
         },
       },

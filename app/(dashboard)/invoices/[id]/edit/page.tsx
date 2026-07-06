@@ -11,6 +11,13 @@ import toast from 'react-hot-toast'
 interface Item { description: string; quantity: number; unitPrice: number; vatRate: number }
 interface FeeRow { period: string; days: number; nav: number; rate: number; fee: number }
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+const CURRENCIES = [
+  'OMR', 'USD', 'EUR', 'GBP', 'AED', 'SAR', 'QAR', 'KWD', 'BHD', 'EGP', 'JOD', 'LBP', 'IQD', 'YER', 'SYP', 'MAD', 'TND', 'DZD', 'LYD', 'SDG',
+  'JPY', 'CNY', 'HKD', 'SGD', 'INR', 'PKR', 'BDT', 'LKR', 'NPR', 'IDR', 'MYR', 'THB', 'PHP', 'VND', 'KRW', 'TWD',
+  'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'RUB', 'TRY', 'UAH',
+  'CAD', 'AUD', 'NZD', 'MXN', 'BRL', 'ARS', 'CLP', 'COP', 'PEN',
+  'ZAR', 'NGN', 'KES', 'ETB', 'GHS', 'TZS', 'UGX', 'XOF', 'XAF',
+]
 function n3(x: number) { return Math.round((x || 0) * 1000) / 1000 }
 
 export default function EditInvoicePage() {
@@ -35,13 +42,17 @@ export default function EditInvoicePage() {
       fetch('/api/customers?limit=1000').then(r => r.json()),
       fetch('/api/masters/banks').then(r => r.json()),
     ]).then(([data, c, b]) => {
+      const cur = data.currency || 'OMR'
+      const rate = cur !== 'OMR' && Number(data.exchangeRate) > 0 ? Number(data.exchangeRate) : 1
       setInv({
         invoiceNumber: data.invoiceNumber, customerId: data.customerId, bankAccountId: data.bankAccountId || '',
         date: data.date ? new Date(data.date).toISOString().split('T')[0] : '',
         dueDate: data.dueDate ? new Date(data.dueDate).toISOString().split('T')[0] : '',
         vatRate: data.vatRate, notes: data.notes || '', invoiceType: data.invoiceType, periodLabel: data.periodLabel || '',
+        currency: cur, exchangeRate: rate,
       })
-      setItems((data.items || []).map((i: any) => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice, vatRate: i.vatRate })))
+      // stored amounts are OMR — display them in the invoice currency
+      setItems((data.items || []).map((i: any) => ({ description: i.description, quantity: i.quantity, unitPrice: n3(i.unitPrice / rate), vatRate: i.vatRate })))
       // Parse fee rows for management/performance fees
       const perf = data.invoiceType === 'PERFORMANCE_FEE'
       let fd: any[] = []
@@ -164,6 +175,23 @@ export default function EditInvoicePage() {
                   <input type="number" className="input" min={0} max={100} step={0.01} value={inv.vatRate}
                     onChange={e => { const v = Number(e.target.value); setInv({ ...inv, vatRate: v }); setItems(prev => prev.map(i => ({ ...i, vatRate: v }))) }} />
                 </div>
+                {!isFee && (
+                  <>
+                    <div>
+                      <label className="label">{L('العملة', 'Currency')}</label>
+                      <select className="input" value={inv.currency} onChange={e => setInv({ ...inv, currency: e.target.value, exchangeRate: e.target.value === 'OMR' ? 1 : inv.exchangeRate })}>
+                        {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    {inv.currency !== 'OMR' && (
+                      <div>
+                        <label className="label">{L(`سعر الصرف (OMR لكل 1 ${inv.currency})`, `Rate (OMR per 1 ${inv.currency})`)}</label>
+                        <input type="number" className="input" min={0} step={0.0001} value={inv.exchangeRate}
+                          onChange={e => setInv({ ...inv, exchangeRate: Number(e.target.value) })} placeholder="0.385" />
+                      </div>
+                    )}
+                  </>
+                )}
                 <div className="col-span-2">
                   <label className="label">{L('ملاحظات', 'Notes')}</label>
                   <input className="input" value={inv.notes} onChange={e => setInv({ ...inv, notes: e.target.value })} />
@@ -240,10 +268,15 @@ export default function EditInvoicePage() {
                 ))}
               </div>
               <div className="mt-5 border-t pt-4 flex justify-end">
-                <div className="w-64 space-y-2 text-sm">
-                  <div className="flex justify-between text-gray-600"><span>{L('المجموع الفرعي', 'Subtotal')}:</span><span className="font-semibold" dir="ltr">{subtotal.toFixed(3)} OMR</span></div>
-                  <div className="flex justify-between text-gray-600"><span>{L('الضريبة', 'VAT')}:</span><span className="font-semibold" dir="ltr">{vatAmount.toFixed(3)} OMR</span></div>
-                  <div className="flex justify-between font-bold text-gray-800 text-base border-t pt-2"><span>{L('الإجمالي', 'Total')}:</span><span className="text-primary-600" dir="ltr">{total.toFixed(3)} OMR</span></div>
+                <div className="w-72 space-y-2 text-sm">
+                  <div className="flex justify-between text-gray-600"><span>{L('المجموع الفرعي', 'Subtotal')}:</span><span className="font-semibold" dir="ltr">{subtotal.toFixed(3)} {inv.currency}</span></div>
+                  <div className="flex justify-between text-gray-600"><span>{L('الضريبة', 'VAT')}:</span><span className="font-semibold" dir="ltr">{vatAmount.toFixed(3)} {inv.currency}</span></div>
+                  <div className="flex justify-between font-bold text-gray-800 text-base border-t pt-2"><span>{L('الإجمالي', 'Total')}:</span><span className="text-primary-600" dir="ltr">{total.toFixed(3)} {inv.currency}</span></div>
+                  {inv.currency !== 'OMR' && inv.exchangeRate > 0 && (
+                    <div className="flex justify-between text-gray-500 text-xs bg-gray-50 rounded-lg px-2 py-1.5">
+                      <span>{L('ما يعادل بالريال:', 'Equivalent OMR:')}</span><span className="font-semibold" dir="ltr">{(total * inv.exchangeRate).toFixed(3)} OMR</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
