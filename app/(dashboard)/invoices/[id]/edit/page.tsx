@@ -102,9 +102,14 @@ export default function EditInvoicePage() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...inv, vatRate: Number(inv.vatRate), items: payloadItems, feeData: feeData ?? undefined }),
       })
-      if (!res.ok) { const e = await res.json(); return toast.error(e.error || L('فشل', 'Failed')) }
-      toast.success(L('تم حفظ التعديلات', 'Saved'))
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}))
+        return toast.error(e.error || L('فشل الحفظ', 'Save failed'), { duration: 6000 })
+      }
+      toast.success(L('تم حفظ التعديلات ✓', 'Saved ✓'))
       router.push(`/invoices/${id}`)
+    } catch (err: any) {
+      toast.error(err?.message || L('فشل الحفظ', 'Save failed'))
     } finally { setSaving(false) }
   }
 

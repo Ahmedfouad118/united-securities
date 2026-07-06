@@ -45,6 +45,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     if (dup) return NextResponse.json({ error: `رقم الفاتورة "${invoiceNumber}" مستخدم بالفعل` }, { status: 400 })
   }
 
+  // Empty string means "cleared" (e.g. bank removed) — must become null, not ''
+  const normBank = bankAccountId === undefined ? existing.bankAccountId : (bankAccountId || null)
+  const normCategory = categoryId === undefined ? existing.categoryId : (categoryId || null)
+
+  try {
   // If items provided, recompute everything and replace items
   if (Array.isArray(items)) {
     const subtotal = items.reduce((s: number, i: any) => s + i.quantity * i.unitPrice, 0)
@@ -64,8 +69,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         invoiceNumber: invoiceNumber || existing.invoiceNumber,
         customerId: customerId || existing.customerId,
         invoiceType: invoiceType || existing.invoiceType,
-        categoryId: categoryId ?? existing.categoryId,
-        bankAccountId: bankAccountId ?? existing.bankAccountId,
+        categoryId: normCategory,
+        bankAccountId: normBank,
         date: date ? new Date(date) : existing.date,
         dueDate: dueDate ? new Date(dueDate) : existing.dueDate,
         subtotal, vatRate, vatAmount, totalAmount,
@@ -90,6 +95,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   // Simple field update
   const invoice = await prisma.invoice.update({ where: { id: params.id }, data: body })
   return NextResponse.json(invoice)
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message?.split('\n').pop() || 'Update failed' }, { status: 400 })
+  }
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
