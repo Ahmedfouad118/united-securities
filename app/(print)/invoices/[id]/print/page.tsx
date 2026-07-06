@@ -402,7 +402,7 @@ function DebitCreditTemplate({ inv }: { inv: any }) {
         </div>
         <div style={{ border: '1px solid #ddd', padding: 10 }}>
           <p style={{ fontWeight: 700, color: '#1e3a5f', marginBottom: 6 }}>Note Details</p>
-          {[['Note Number', inv.invoiceNumber], ['Date', fmtDate(inv.date)], ['Bank', inv.bankAccount?.bankName]].filter(([, v]) => v).map(([k, v]) => (
+          {[['Note Number', inv.invoiceNumber], ['Date', fmtDate(inv.date)]].filter(([, v]) => v).map(([k, v]) => (
             <div key={String(k)} style={{ display: 'flex', gap: 8, padding: '2px 0' }}>
               <span style={{ color: '#666', minWidth: 90 }}>{k}:</span><span style={{ fontWeight: 600 }}>{v}</span>
             </div>
@@ -411,41 +411,52 @@ function DebitCreditTemplate({ inv }: { inv: any }) {
       </div>
 
       {/* Items */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16 }}>
-        <thead>
-          <tr style={{ backgroundColor: '#1e3a5f', color: '#fff' }}>
-            {['#', 'Description', 'Qty', 'Unit Price', 'VAT%', 'VAT Amt', 'Total'].map(h => (
-              <th key={h} style={{ padding: '7px 8px', border: '1px solid #ccc', textAlign: 'center', fontWeight: 600 }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {inv.items?.map((item: any, i: number) => (
-            <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#f9f9f9' : '#fff' }}>
-              <td style={{ padding: '5px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{i + 1}</td>
-              <td style={{ padding: '5px 8px', border: '1px solid #ddd' }}>{item.description}</td>
-              <td style={{ padding: '5px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{item.quantity}</td>
-              <td style={{ padding: '5px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{fmt(item.unitPrice)}</td>
-              <td style={{ padding: '5px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{item.vatRate}%</td>
-              <td style={{ padding: '5px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{fmt(item.vatAmount)}</td>
-              <td style={{ padding: '5px 8px', border: '1px solid #ddd', textAlign: 'center', fontWeight: 700 }}>{fmt(item.total)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {(() => {
+        const cur = inv.currency && inv.currency !== 'OMR' ? inv.currency : null
+        const rate = Number(inv.exchangeRate) > 0 ? Number(inv.exchangeRate) : 1
+        const fx = (v: any) => cur ? fmt(Number(v) / rate) : fmt(v)
+        return (
+          <>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16 }}>
+              <thead>
+                <tr style={{ backgroundColor: '#1e3a5f', color: '#fff' }}>
+                  {['#', 'Description', 'Qty', 'Amount', 'VAT%', 'VAT Amt', 'Total'].map(h => (
+                    <th key={h} style={{ padding: '7px 8px', border: '1px solid #ccc', textAlign: 'center', fontWeight: 600 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {inv.items?.map((item: any, i: number) => (
+                  <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#f9f9f9' : '#fff' }}>
+                    <td style={{ padding: '5px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{i + 1}</td>
+                    <td style={{ padding: '5px 8px', border: '1px solid #ddd' }}>{item.description}</td>
+                    <td style={{ padding: '5px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{item.quantity}</td>
+                    <td style={{ padding: '5px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{fx(item.unitPrice)}</td>
+                    <td style={{ padding: '5px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{item.vatRate}%</td>
+                    <td style={{ padding: '5px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{fx(item.vatAmount)}</td>
+                    <td style={{ padding: '5px 8px', border: '1px solid #ddd', textAlign: 'center', fontWeight: 700 }}>{fx(item.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-      <table style={{ width: 280, marginLeft: 'auto', borderCollapse: 'collapse', marginBottom: 20 }}>
-        <tbody>
-          <tr><td style={{ padding: '4px 8px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>Subtotal</td><td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right' }}>{fmt(subtotal)}</td></tr>
-          {vatAmt > 0 && <tr><td style={{ padding: '4px 8px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>VAT ({vatRate}%)</td><td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right' }}>{fmt(vatAmt)}</td></tr>}
-          <tr style={{ backgroundColor: isCredit ? '#16a34a' : '#dc2626', color: '#fff' }}>
-            <td style={{ padding: '6px 8px', fontWeight: 700 }}>Total {isCredit ? 'Credit' : 'Debit'}</td>
-            <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700 }}>OMR &nbsp; {fmt(total)}</td>
-          </tr>
-        </tbody>
-      </table>
+            <table style={{ width: 280, marginLeft: 'auto', borderCollapse: 'collapse', marginBottom: 20 }}>
+              <tbody>
+                <tr><td style={{ padding: '4px 8px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>Subtotal</td><td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right' }}>{fx(subtotal)}</td></tr>
+                {vatAmt > 0 && <tr><td style={{ padding: '4px 8px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>VAT ({vatRate}%)</td><td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right' }}>{fx(vatAmt)}</td></tr>}
+                <tr style={{ backgroundColor: isCredit ? '#16a34a' : '#dc2626', color: '#fff' }}>
+                  <td style={{ padding: '6px 8px', fontWeight: 700 }}>Total {isCredit ? 'Credit' : 'Debit'}</td>
+                  <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700 }}>{cur || 'OMR'} &nbsp; {fx(total)}</td>
+                </tr>
+                {cur && <tr><td style={{ padding: '4px 8px', border: '1px solid #ddd', fontSize: 10, color: '#777' }}>Equivalent (OMR)</td><td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right', fontSize: 10, color: '#777' }}>{fmt(total)}</td></tr>}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
 
-      <Disclaimers />
+      <BankDetails inv={inv} />
+      <Disclaimers inv={inv} />
       <Footer inv={inv} />
     </div>
   )
@@ -454,11 +465,13 @@ function DebitCreditTemplate({ inv }: { inv: any }) {
 // ─────────────────────────────────────────────────────────────
 // Shared: Disclaimers + Footer
 // ─────────────────────────────────────────────────────────────
-function Disclaimers() {
+function Disclaimers({ inv }: { inv?: any }) {
+  // Credit notes credit the client's account; everything else debits it
+  const word = inv?.invoiceType === 'CREDIT_NOTE' ? 'credited' : 'debited'
   return (
     <div style={{ marginTop: 16, marginBottom: 12 }}>
       <p style={{ fontSize: 10, color: '#555', fontStyle: 'italic', marginBottom: 4 }}>
-        Notes: The above clients account with United Securities is debited for the Amounts in Settlement currency at the respective settlement dates.
+        Notes: The above clients account with United Securities is {word} for the Amounts in Settlement currency at the respective settlement dates.
       </p>
       <p style={{ fontSize: 10, color: '#555', fontStyle: 'italic' }}>
         Disclaimer: This invoice is computer generated and does not require any signature

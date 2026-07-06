@@ -19,7 +19,13 @@ const TYPE_OPTS = [
   { value: 'CREDIT_NOTE', ar: 'مذكرة دائن (Credit Note)', en: 'Credit Note' },
 ]
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-const CURRENCIES = ['OMR', 'USD', 'EUR', 'GBP', 'AED', 'SAR', 'QAR', 'KWD', 'BHD']
+const CURRENCIES = [
+  'OMR', 'USD', 'EUR', 'GBP', 'AED', 'SAR', 'QAR', 'KWD', 'BHD', 'EGP', 'JOD', 'LBP', 'IQD', 'YER', 'SYP', 'MAD', 'TND', 'DZD', 'LYD', 'SDG',
+  'JPY', 'CNY', 'HKD', 'SGD', 'INR', 'PKR', 'BDT', 'LKR', 'NPR', 'IDR', 'MYR', 'THB', 'PHP', 'VND', 'KRW', 'TWD',
+  'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'RUB', 'TRY', 'UAH',
+  'CAD', 'AUD', 'NZD', 'MXN', 'BRL', 'ARS', 'CLP', 'COP', 'PEN',
+  'ZAR', 'NGN', 'KES', 'ETB', 'GHS', 'TZS', 'UGX', 'XOF', 'XAF',
+]
 
 function n3(x: number) { return (Math.round((x || 0) * 1000) / 1000) }
 
@@ -220,7 +226,7 @@ export default function NewInvoicePage() {
                     placeholder={isPerf ? '2025' : 'May 2026'} />
                 </div>
               )}
-              {isRegular && (
+              {(isRegular || isNote) && (
                 <>
                   <div>
                     <label className="label">{L('العملة', 'Currency')}</label>
@@ -348,7 +354,7 @@ export default function NewInvoicePage() {
                   </div>
                 ))}
               </div>
-              <Totals subtotal={subtotal} vatAmount={vatAmount} total={total} vatRate={form.vatRate} L={L} />
+              <Totals subtotal={subtotal} vatAmount={vatAmount} total={total} vatRate={form.vatRate} L={L} currency={form.currency} rate={form.exchangeRate} />
             </div>
           )}
 
