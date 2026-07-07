@@ -47,18 +47,27 @@ export default function CustomersPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<string[]>([])
+  const [sortBy, setSortBy] = useState('name')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+
+  function toggleSort(key: string) {
+    if (!key) return
+    if (sortBy === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortBy(key); setSortDir('asc') }
+    setPage(1)
+  }
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/customers?search=${search}&page=${page}&limit=20`)
+      const res = await fetch(`/api/customers?search=${encodeURIComponent(search)}&page=${page}&limit=20&sortBy=${sortBy}&sortDir=${sortDir}`)
       const data = await res.json()
       setCustomers(data.customers)
       setTotal(data.total)
     } finally {
       setLoading(false)
     }
-  }, [search, page])
+  }, [search, page, sortBy, sortDir])
 
   useEffect(() => { fetchCustomers() }, [fetchCustomers])
 
@@ -163,8 +172,18 @@ export default function CustomersPage() {
                     <th className="table-header w-10 text-center">
                       <input type="checkbox" className="accent-primary-600" checked={customers.length > 0 && selected.length === customers.length} onChange={toggleSelectAll} />
                     </th>
-                    {[L('الاسم', 'Name'), L('الهاتف', 'Phone'), L('البريد الإلكتروني', 'Email'), L('الرصيد الافتتاحي', 'Opening Balance'), L('الرصيد الحالي', 'Current Balance'), L('إجراءات', 'Actions')].map(h => (
-                      <th key={h} className="table-header text-start">{h}</th>
+                    {[
+                      { label: L('رقم العميل', 'Client No.'), key: 'clientNumber' },
+                      { label: L('الاسم', 'Name'), key: 'name' },
+                      { label: L('الهاتف', 'Phone'), key: 'phone' },
+                      { label: L('البريد الإلكتروني', 'Email'), key: 'email' },
+                      { label: L('الرصيد الافتتاحي', 'Opening Balance'), key: 'openingBalance' },
+                      { label: L('الرصيد الحالي', 'Current Balance'), key: 'currentBalance' },
+                      { label: L('إجراءات', 'Actions'), key: '' },
+                    ].map(h => (
+                      <th key={h.label} className={`table-header text-start ${h.key ? 'cursor-pointer select-none hover:text-primary-600' : ''}`} onClick={() => toggleSort(h.key)}>
+                        {h.label}{h.key && sortBy === h.key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -174,6 +193,7 @@ export default function CustomersPage() {
                       <td className="table-cell text-center">
                         <input type="checkbox" className="accent-primary-600" checked={selected.includes(c.id)} onChange={() => toggleSelect(c.id)} />
                       </td>
+                      <td className="table-cell font-mono text-xs text-gray-500">{(c as any).clientNumber || '—'}</td>
                       <td className="table-cell font-semibold text-gray-800">{c.name}</td>
                       <td className="table-cell">
                         {c.phone ? (

@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
 
   // sequence start
   const now = new Date()
-  const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+  const ym = `${now.getFullYear()}`
   const last = await prisma.invoice.findFirst({ where: { invoiceType: type }, orderBy: { createdAt: 'desc' }, select: { invoiceNumber: true } })
   let seq = 1
   if (last?.invoiceNumber) { const p = parseInt(last.invoiceNumber.split('-').pop() || '0'); if (!isNaN(p)) seq = p + 1 }

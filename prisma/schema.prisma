@@ -75,6 +75,7 @@ model InvoiceCategory {
   nameAr    String?
   type      String    @default("REGULAR")
   notes     String?
+  bodyText  String?
   active    Boolean   @default(true)
   createdAt DateTime  @default(now())
   invoices  Invoice[]

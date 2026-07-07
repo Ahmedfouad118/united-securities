@@ -61,11 +61,20 @@ export default function InvoicesPage() {
   const [importType, setImportType] = useState('REGULAR')
   const [importing, setImporting] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
+  const [sortBy, setSortBy] = useState('createdAt')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  function toggleSort(key: string) {
+    if (!key) return
+    if (sortBy === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortBy(key); setSortDir('asc') }
+    setPage(1)
+  }
 
   const fetchInvoices = useCallback(async () => {
     setLoading(true)
     try {
-      const p = new URLSearchParams({ search, status, invoiceType, approvalStatus, page: String(page), limit: '20' })
+      const p = new URLSearchParams({ search, status, invoiceType, approvalStatus, page: String(page), limit: '20', sortBy, sortDir })
       if (dateFrom) p.set('dateFrom', dateFrom)
       if (dateTo) p.set('dateTo', dateTo)
       if (fromNum) p.set('fromNum', fromNum)
@@ -75,7 +84,7 @@ export default function InvoicesPage() {
       setInvoices(data.invoices || [])
       setTotal(data.total || 0)
     } finally { setLoading(false) }
-  }, [search, status, invoiceType, approvalStatus, page, dateFrom, dateTo, fromNum, toNum])
+  }, [search, status, invoiceType, approvalStatus, page, dateFrom, dateTo, fromNum, toNum, sortBy, sortDir])
 
   useEffect(() => { fetchInvoices() }, [fetchInvoices])
 
@@ -282,9 +291,11 @@ export default function InvoicesPage() {
   const totalPages = Math.ceil(total / 20)
   const pageTitle = lang === 'en' ? 'Invoices' : 'الفواتير'
 
-  const tableHeaders = lang === 'en'
+  const labels = lang === 'en'
     ? ['Invoice No.', 'Type', 'Customer', 'Date', 'Total', 'Remaining', 'Status', 'Approval', 'Actions']
     : ['رقم الفاتورة', 'النوع', 'العميل', 'التاريخ', 'الإجمالي', 'المتبقي', 'الحالة', 'الموافقة', 'إجراءات']
+  const sortKeys = ['invoiceNumber', 'invoiceType', 'customer', 'date', 'totalAmount', 'remaining', 'status', 'approvalStatus', '']
+  const tableHeaders = labels.map((label, i) => ({ label, key: sortKeys[i] }))
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -383,7 +394,11 @@ export default function InvoicesPage() {
                     <th className="table-header w-10 text-center">
                       <input type="checkbox" className="accent-primary-600" checked={invoices.length > 0 && selected.length === invoices.length} onChange={toggleSelectAll} />
                     </th>
-                    {tableHeaders.map(h => <th key={h} className="table-header text-right">{h}</th>)}
+                    {tableHeaders.map(h => (
+                      <th key={h.label} className={`table-header text-right ${h.key ? 'cursor-pointer select-none hover:text-primary-600' : ''}`} onClick={() => toggleSort(h.key)}>
+                        {h.label}{h.key && sortBy === h.key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>

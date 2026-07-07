@@ -129,10 +129,12 @@ function MgmtFeeTemplate({ inv }: { inv: any }) {
         </div>
       </div>
 
-      {/* Greeting */}
+      {/* Greeting — category body text overrides the default paragraph */}
       <p style={{ marginBottom: 10, fontSize: 11 }}><strong>After Compliments,</strong></p>
-      <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.6 }}>
-        With reference to your discretionary portfolio management agreement, and according to the Annex's and Amendments which relate to the Investment Manager's management fees, we would like to notify you of the portfolio's {title.toLowerCase()} accrued for the period of this invoice will be charged to your account under management as of the details below:
+      <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+        {inv.category?.bodyText
+          ? inv.category.bodyText
+          : `With reference to your discretionary portfolio management agreement, and according to the Annex's and Amendments which relate to the Investment Manager's management fees, we would like to notify you of the portfolio's ${title.toLowerCase()} accrued for the period of this invoice will be charged to your account under management as of the details below:`}
       </p>
 
       {/* Client Info */}
@@ -295,8 +297,8 @@ function ServiceFeeTemplate({ inv }: { inv: any }) {
       </div>
 
       <p style={{ marginBottom: 10, fontSize: 11 }}><strong>After Compliments,</strong></p>
-      <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.6 }}>
-        You are kindly requested to settle the following fees against the services rendered hereunder:
+      <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+        {inv.category?.bodyText || 'You are kindly requested to settle the following fees against the services rendered hereunder:'}
       </p>
 
       {/* Client Info */}
@@ -406,6 +408,10 @@ function DebitCreditTemplate({ inv }: { inv: any }) {
         </div>
       </div>
 
+      {inv.category?.bodyText && (
+        <p style={{ marginBottom: 14, fontSize: 11, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{inv.category.bodyText}</p>
+      )}
+
       {/* Two-column meta */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20, fontSize: 11 }}>
         <div style={{ border: '1px solid #ddd', padding: 10 }}>
@@ -512,7 +518,7 @@ function Footer({ inv }: { inv: any }) {
     <div className="invoice-footer" style={{ borderTop: '2px solid #1e3a5f', paddingTop: 8, marginTop: 16, textAlign: 'center', fontSize: 10, color: '#555' }}>
       <p style={{ margin: '2px 0' }}>{COMPANY.nameEn}, {COMPANY.poBox}, {COMPANY.location}</p>
       <p style={{ margin: '2px 0' }}>{COMPANY.phone} | {COMPANY.fax} | Website: {COMPANY.website} | Email: {COMPANY.email}</p>
-      <p style={{ margin: '4px 0', color: '#999' }}>Printed: {new Date().toLocaleDateString('en-GB')} | {inv.invoiceNumber}</p>
+      <p style={{ margin: '4px 0', color: '#999' }}>Printed: {new Date().toLocaleDateString('en-GB')}{inv.createdByUser?.name ? ` by ${inv.createdByUser.name}` : ''} | {inv.invoiceNumber}</p>
     </div>
   )
 }

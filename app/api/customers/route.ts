@@ -13,15 +13,26 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get('search') || ''
   const page = parseInt(searchParams.get('page') || '1')
   const limit = parseInt(searchParams.get('limit') || '20')
+  const sortBy = searchParams.get('sortBy') || 'name'
+  const sortDir = (searchParams.get('sortDir') || 'asc') === 'desc' ? 'desc' : 'asc'
 
   const where = search
-    ? { OR: [{ name: { contains: search, mode: 'insensitive' as const } }, { phone: { contains: search } }] }
+    ? { OR: [
+        { name: { contains: search, mode: 'insensitive' as const } },
+        { phone: { contains: search } },
+        { clientNumber: { contains: search } },
+        { accountNumber: { contains: search } },
+        { email: { contains: search, mode: 'insensitive' as const } },
+      ] }
     : {}
+
+  const SORTABLE = ['name', 'clientNumber', 'accountNumber', 'phone', 'email', 'openingBalance', 'currentBalance', 'createdAt']
+  const orderBy: any = SORTABLE.includes(sortBy) ? { [sortBy]: sortDir } : { name: 'asc' }
 
   const [customers, total] = await Promise.all([
     prisma.customer.findMany({
       where,
-      orderBy: { name: 'asc' },
+      orderBy,
       skip: (page - 1) * limit,
       take: limit,
     }),

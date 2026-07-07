@@ -78,6 +78,7 @@ export function renderInvoiceHtml(inv: any, company: any): string {
     </p>
 
     <p style="font-size:12px"><b>After Compliments,</b></p>
+    ${inv.category?.bodyText ? `<p style="font-size:12px;line-height:1.6;white-space:pre-line">${inv.category.bodyText}</p>` : ''}
 
     <div style="border:1px solid #ccc;padding:10px;background:#fafafa;font-size:12px;margin-bottom:8px">
       ${inv.customer?.name ? `Client Name: <b>${inv.customer.name}</b><br/>` : ''}

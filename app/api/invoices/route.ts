@@ -16,7 +16,7 @@ const TYPE_PREFIX: Record<string, string> = {
 async function genInvoiceNumber(type: string): Promise<string> {
   const prefix = TYPE_PREFIX[type] || 'INV'
   const now = new Date()
-  const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+  const ym = `${now.getFullYear()}`
 
   // Find last invoice of this type to get the last sequence number
   const last = await prisma.invoice.findFirst({
@@ -51,6 +51,8 @@ export async function GET(req: NextRequest) {
   const fromNum = searchParams.get('fromNum') || ''
   const toNum = searchParams.get('toNum') || ''
   const customerId = searchParams.get('customerId') || ''
+  const sortBy = searchParams.get('sortBy') || 'createdAt'
+  const sortDir = (searchParams.get('sortDir') || 'desc') === 'asc' ? 'asc' : 'desc'
 
   const where: any = {}
   if (status) where.status = status
@@ -58,8 +60,10 @@ export async function GET(req: NextRequest) {
   if (invoiceType) where.invoiceType = invoiceType
   if (customerId) where.customerId = customerId
   if (search) where.OR = [
-    { customer: { name: { contains: search } } },
-    { invoiceNumber: { contains: search } },
+    { customer: { name: { contains: search, mode: 'insensitive' } } },
+    { customer: { clientNumber: { contains: search } } },
+    { customer: { accountNumber: { contains: search } } },
+    { invoiceNumber: { contains: search, mode: 'insensitive' } },
   ]
   if (dateFrom || dateTo) {
     where.date = {}
@@ -69,11 +73,17 @@ export async function GET(req: NextRequest) {
   if (fromNum) where.invoiceNumber = { ...where.invoiceNumber, gte: fromNum }
   if (toNum) where.invoiceNumber = { ...where.invoiceNumber, lte: toNum }
 
+  // Column-level sorting (customer name sorts via relation)
+  const orderBy: any =
+    sortBy === 'customer' ? { customer: { name: sortDir } }
+    : ['invoiceNumber', 'invoiceType', 'date', 'totalAmount', 'remaining', 'status', 'approvalStatus', 'createdAt'].includes(sortBy) ? { [sortBy]: sortDir }
+    : { createdAt: 'desc' }
+
   const [invoices, total] = await Promise.all([
     prisma.invoice.findMany({
       where,
       include: { customer: true, category: true, bankAccount: true, createdByUser: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       skip: (page - 1) * limit,
       take: limit,
     }),

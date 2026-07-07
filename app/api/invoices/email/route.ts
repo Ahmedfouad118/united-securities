@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   for (const id of ids) {
     const inv = await prisma.invoice.findUnique({
       where: { id },
-      include: { customer: true, bankAccount: true, items: true },
+      include: { customer: true, bankAccount: true, items: true, category: true },
     })
     if (!inv) { skipped.push(`${id}: غير موجودة`); continue }
     if (!inv.customer?.email) { skipped.push(`${inv.invoiceNumber}: لا يوجد إيميل للعميل`); continue }

@@ -10,7 +10,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
 
   const inv = await prisma.invoice.findUnique({
     where: { id: params.id },
-    include: { customer: true, bankAccount: true, items: true },
+    include: { customer: true, bankAccount: true, items: true, category: true },
   })
   if (!inv) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
