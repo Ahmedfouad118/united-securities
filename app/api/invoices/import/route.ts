@@ -27,16 +27,19 @@ export async function POST(req: NextRequest) {
   // Accept either a small JSON batch { type, rows } (preferred — avoids serverless timeout)
   // or a legacy multipart file upload.
   let type = 'REGULAR'
+  let categoryId: string | null = null
   let rows: any[] = []
   const ct = req.headers.get('content-type') || ''
   if (ct.includes('application/json')) {
     const body = await req.json()
     type = body.type || 'REGULAR'
+    categoryId = body.categoryId || null
     rows = Array.isArray(body.rows) ? body.rows : []
   } else {
     const formData = await req.formData()
     const file = formData.get('file') as File
     type = (formData.get('type') as string) || 'REGULAR'
+    categoryId = (formData.get('categoryId') as string) || null
     if (!file) return NextResponse.json({ error: 'لم يتم رفع ملف' }, { status: 400 })
     const buffer = Buffer.from(await file.arrayBuffer())
     const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true })
@@ -164,6 +167,7 @@ export async function POST(req: NextRequest) {
       const invoice = await prisma.invoice.create({
         data: {
           invoiceNumber, invoiceType: type, customerId: customer.id, date,
+          categoryId: categoryId || null,
           bankAccountId, notes,
           subtotal, vatRate, vatAmount, totalAmount, paidAmount: 0, remaining: totalAmount,
           status: 'UNPAID', approvalStatus: isAdmin ? 'APPROVED' : 'PENDING',

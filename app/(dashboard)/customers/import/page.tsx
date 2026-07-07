@@ -29,7 +29,8 @@ export default function ImportCustomersPage() {
     try {
       const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true })
       const ws = wb.Sheets[wb.SheetNames[0]]
-      const allRows: any[] = XLSX.utils.sheet_to_json(ws, { raw: false })
+      // raw:true keeps full-precision client numbers (avoids 1.0E+12 rounding)
+      const allRows: any[] = XLSX.utils.sheet_to_json(ws, { raw: true, defval: '' })
       if (!allRows.length) return toast.error('الملف فارغ')
 
       const BATCH = 20

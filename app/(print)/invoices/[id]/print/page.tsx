@@ -103,8 +103,8 @@ function MgmtFeeTemplate({ inv }: { inv: any }) {
         </div>
         <div style={{ textAlign: 'center', flex: 1 }}>
           <h2 style={{ fontSize: 16, fontWeight: 900, color: '#1e3a5f', margin: '10px 0 4px' }}>Tax Invoice</h2>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#333', margin: '0 0 4px' }}>{title}</h3>
-          {titleAr && <p style={{ fontSize: 11, color: '#666', margin: 0 }}>{titleAr}</p>}
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#333', margin: '0 0 4px' }}>{inv.category?.name || title}</h3>
+          {!inv.category?.name && titleAr && <p style={{ fontSize: 11, color: '#666', margin: 0 }}>{titleAr}</p>}
         </div>
         <div style={{ textAlign: 'right', fontSize: 11 }}>
           <p style={{ fontWeight: 700, color: '#1e3a5f', margin: '0 0 2px' }}>{COMPANY.nameEn}</p>
@@ -258,7 +258,7 @@ function BankDetails({ inv }: { inv: any }) {
 // Template B: Regular / Service Fees / Consulting
 // ─────────────────────────────────────────────────────────────
 function ServiceFeeTemplate({ inv }: { inv: any }) {
-  const typeTitle = inv.invoiceType === 'REGULAR' ? 'Service Fees' : 'Consulting Fees'
+  const typeTitle = inv.category?.name || (inv.invoiceType === 'REGULAR' ? 'Service Fees' : 'Consulting Fees')
   const subtotal = Number(inv.subtotal)
   const vatAmt = Number(inv.vatAmount)
   const total = Number(inv.totalAmount)

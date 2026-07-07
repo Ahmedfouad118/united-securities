@@ -60,6 +60,8 @@ export default function InvoicesPage() {
   const [selected, setSelected] = useState<string[]>([])
   const [importType, setImportType] = useState('REGULAR')
   const [importing, setImporting] = useState(false)
+  const [categories, setCategories] = useState<any[]>([])
+  const [importCatId, setImportCatId] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sortBy, setSortBy] = useState('createdAt')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -87,6 +89,18 @@ export default function InvoicesPage() {
   }, [search, status, invoiceType, approvalStatus, page, dateFrom, dateTo, fromNum, toNum, sortBy, sortDir])
 
   useEffect(() => { fetchInvoices() }, [fetchInvoices])
+
+  // Load invoice categories (custom types) for the import dropdown & filters
+  useEffect(() => {
+    fetch('/api/masters/invoice-categories').then(r => r.json()).then((cats: any[]) => {
+      const active = Array.isArray(cats) ? cats.filter(c => c.active !== false) : []
+      setCategories(active)
+      if (active.length && !importCatId) setImportCatId(active[0].id)
+    }).catch(() => {})
+  }, [])
+
+  const importCat = categories.find(c => c.id === importCatId)
+  const effectiveImportType = importCat?.type || importType
 
   async function deleteInvoice(id: string, num: string) {
     if (!confirm(lang === 'en' ? `Delete invoice "${num}"? This reverses its effect on the customer balance.` : `حذف الفاتورة "${num}"؟ سيتم عكس أثرها على رصيد العميل.`)) return
@@ -233,16 +247,18 @@ export default function InvoicesPage() {
 
   // Download a blank import template for the chosen invoice type
   function downloadTemplate() {
+    const t = effectiveImportType
     // "Invoice Number" first column — leave empty to auto-generate, or put your old serial to keep it
     let cols: Record<string, any> = {}
-    if (importType === 'MANAGEMENT_FEE') cols = { 'Invoice Number': '', 'Client Number': '', 'Client Name': '', 'Month': 'MAY', 'Days': 31, 'NAV': 0, 'Fees%': 0.5, 'Date': '', 'VAT%': 5, 'Bank Name': '', 'Notes': '' }
-    else if (importType === 'PERFORMANCE_FEE') cols = { 'Invoice Number': '', 'Client Number': '', 'Client Name': '', 'Year': '2025', 'Fees': 0, 'Date': '', 'VAT%': 5, 'Bank Name': '', 'Notes': '' }
-    else if (importType === 'DEBIT_NOTE' || importType === 'CREDIT_NOTE') cols = { 'Invoice Number': '', 'Client Number': '', 'Client Name': '', 'Invoice No': '', 'Amount': 0, 'Date': '', 'VAT%': 5, 'Notes': '' }
+    if (t === 'MANAGEMENT_FEE') cols = { 'Invoice Number': '', 'Client Number': '', 'Client Name': '', 'Month': 'MAY', 'Days': 31, 'NAV': 0, 'Fees%': 0.5, 'Date': '', 'VAT%': 5, 'Bank Name': '', 'Notes': '' }
+    else if (t === 'PERFORMANCE_FEE') cols = { 'Invoice Number': '', 'Client Number': '', 'Client Name': '', 'Year': '2025', 'Fees': 0, 'Date': '', 'VAT%': 5, 'Bank Name': '', 'Notes': '' }
+    else if (t === 'DEBIT_NOTE' || t === 'CREDIT_NOTE') cols = { 'Invoice Number': '', 'Client Number': '', 'Client Name': '', 'Invoice No': '', 'Amount': 0, 'Date': '', 'VAT%': 5, 'Notes': '' }
     else cols = { 'Invoice Number': '', 'Client Number': '', 'Client Name': '', 'Description': '', 'Amount': 0, 'Date': '', 'VAT%': 5, 'Bank Name': '', 'Notes': '' }
+    const label = (importCat?.name || t).replace(/[^\w-]/g, '_')
     const ws = XLSX.utils.json_to_sheet([cols])
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, importType)
-    XLSX.writeFile(wb, `template-${importType}.xlsx`)
+    XLSX.utils.book_append_sheet(wb, ws, label.slice(0, 30))
+    XLSX.writeFile(wb, `template-${label}.xlsx`)
   }
 
   // Parse the Excel in the browser and upload in small batches — avoids the
@@ -255,8 +271,8 @@ export default function InvoicesPage() {
     try {
       const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true })
       const ws = wb.Sheets[wb.SheetNames[0]]
-      // raw:false → dates/numbers come as displayed strings, safe for JSON
-      const allRows: any[] = XLSX.utils.sheet_to_json(ws, { raw: false })
+      // raw:true keeps full-precision numbers (client numbers won't turn into 1.0E+12)
+      const allRows: any[] = XLSX.utils.sheet_to_json(ws, { raw: true, defval: '' })
       if (!allRows.length) { toast.error(lang === 'en' ? 'File is empty' : 'الملف فارغ', { id: progressToast }); return }
 
       const BATCH = 15
@@ -269,7 +285,7 @@ export default function InvoicesPage() {
           : `جاري الرفع ${Math.min(i + BATCH, allRows.length)} / ${allRows.length}...`, { id: progressToast })
         const res = await fetch('/api/invoices/import', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: importType, rows: batch }),
+          body: JSON.stringify({ type: effectiveImportType, categoryId: importCatId || undefined, rows: batch }),
         })
         const data = await res.json().catch(() => ({}))
         if (!res.ok) { errors.push(data.error || `Batch ${i / BATCH + 1} failed`); continue }
@@ -365,8 +381,9 @@ export default function InvoicesPage() {
             {hasPermission(role, 'CREATE_INVOICE') && (
               <div className="flex items-center gap-2 mr-auto bg-gray-50 rounded-lg p-1.5">
                 <span className="text-xs text-gray-500 px-1">{lang === 'en' ? 'Import:' : 'استيراد:'}</span>
-                <select className="input text-xs py-1 w-36" value={importType} onChange={e => setImportType(e.target.value)}>
-                  {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                <select className="input text-xs py-1 w-40" value={importCatId} onChange={e => setImportCatId(e.target.value)}>
+                  {categories.length === 0 && Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  {categories.map(c => <option key={c.id} value={c.id}>{lang === 'en' ? c.name : (c.nameAr || c.name)}</option>)}
                 </select>
                 <button onClick={downloadTemplate} className="btn-secondary text-xs py-1.5"><Download size={13} /> {lang === 'en' ? 'Template' : 'نموذج'}</button>
                 <label className="btn-primary text-xs py-1.5 cursor-pointer">

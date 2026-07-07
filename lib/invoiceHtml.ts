@@ -25,7 +25,8 @@ export function renderInvoiceHtml(inv: any, company: any): string {
   const website = c.website || 'www.usoman.com'
   const logo = c.logoUrl ? `<img src="${c.logoUrl}" style="width:90px;height:auto;max-height:100px;object-fit:contain" />` : `<div style="font-size:34px;font-weight:900;color:#B8860B">U</div>`
 
-  const title = TITLES[inv.invoiceType] || 'Tax Invoice'
+  const isNote = inv.invoiceType === 'DEBIT_NOTE' || inv.invoiceType === 'CREDIT_NOTE'
+  const title = isNote ? (TITLES[inv.invoiceType] || 'Tax Invoice') : (inv.category?.name || TITLES[inv.invoiceType] || 'Tax Invoice')
   const isFee = inv.invoiceType === 'MANAGEMENT_FEE' || inv.invoiceType === 'PERFORMANCE_FEE'
   const isPerf = inv.invoiceType === 'PERFORMANCE_FEE'
 
