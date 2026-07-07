@@ -209,6 +209,7 @@ function MgmtFeeTemplate({ inv }: { inv: any }) {
         </tbody>
       </table>
 
+      <UserNotes inv={inv} />
       <BankDetails inv={inv} />
       <Disclaimers />
       <Footer inv={inv} />
@@ -328,6 +329,8 @@ function ServiceFeeTemplate({ inv }: { inv: any }) {
           </table>
         )
       })()}
+
+      <UserNotes inv={inv} />
 
       {/* Bank Details */}
       {inv.bankAccount && (
@@ -455,14 +458,9 @@ function DebitCreditTemplate({ inv }: { inv: any }) {
         )
       })()}
 
-      {/* Invoice notes entered by the user — shown under the totals */}
-      {inv.notes && (
-        <p style={{ fontSize: 12, marginBottom: 16, fontWeight: 600 }}>
-          Notes: <span style={{ fontWeight: 400 }}>{inv.notes}</span>
-        </p>
-      )}
-
+      <UserNotes inv={inv} />
       <BankDetails inv={inv} />
+      <Disclaimers />
       <Footer inv={inv} />
     </div>
   )
@@ -472,17 +470,22 @@ function DebitCreditTemplate({ inv }: { inv: any }) {
 // Shared: Disclaimers + Footer
 // ─────────────────────────────────────────────────────────────
 function Disclaimers({ inv }: { inv?: any }) {
-  // Credit notes credit the client's account; everything else debits it
-  const word = inv?.invoiceType === 'CREDIT_NOTE' ? 'credited' : 'debited'
   return (
     <div style={{ marginTop: 16, marginBottom: 12 }}>
-      <p style={{ fontSize: 10, color: '#555', fontStyle: 'italic', marginBottom: 4 }}>
-        Notes: The above clients account with United Securities is {word} for the Amounts in Settlement currency at the respective settlement dates.
-      </p>
       <p style={{ fontSize: 10, color: '#555', fontStyle: 'italic' }}>
         Disclaimer: This invoice is computer generated and does not require any signature
       </p>
     </div>
+  )
+}
+
+// User-entered invoice notes — shown above the bank/settlement section
+function UserNotes({ inv }: { inv: any }) {
+  if (!inv.notes) return null
+  return (
+    <p style={{ fontSize: 12, margin: '4px 0 14px', fontWeight: 600 }}>
+      Notes: <span style={{ fontWeight: 400 }}>{inv.notes}</span>
+    </p>
   )
 }
 function Footer({ inv }: { inv: any }) {
