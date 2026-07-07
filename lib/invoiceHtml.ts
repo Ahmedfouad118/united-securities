@@ -93,11 +93,14 @@ export function renderInvoiceHtml(inv: any, company: any): string {
       const cur = inv.currency && inv.currency !== 'OMR' ? inv.currency : null
       const rate = Number(inv.exchangeRate) > 0 ? Number(inv.exchangeRate) : 1
       const fx = (v: any) => cur ? fmt(Number(v) / rate) : fmt(v)
-      return `<table style="width:280px;margin-left:auto;border-collapse:collapse;font-size:12px" border="1">
-      <tr><td style="padding:5px;background:#f5f5f5">Subtotal</td><td style="text-align:right;padding:5px">${fx(inv.subtotal)}</td></tr>
+      return `<table style="width:300px;margin-left:auto;border-collapse:collapse;font-size:12px" border="1">
+      <tr><td style="padding:5px;background:#f5f5f5">Subtotal ${cur ? `(${cur})` : ''}</td><td style="text-align:right;padding:5px">${fx(inv.subtotal)}</td></tr>
       <tr><td style="padding:5px;background:#f5f5f5">VAT (${inv.vatRate}%)</td><td style="text-align:right;padding:5px">${fx(inv.vatAmount)}</td></tr>
-      <tr style="background:#1e3a5f;color:#fff"><td style="padding:6px"><b>NET Value</b></td><td style="text-align:right;padding:6px"><b>${cur || 'RO'} ${fx(inv.totalAmount)}</b></td></tr>
-      ${cur ? `<tr><td style="padding:4px;font-size:10px;color:#777">Equivalent (OMR)</td><td style="text-align:right;padding:4px;font-size:10px;color:#777">${fmt(inv.totalAmount)}</td></tr>` : ''}
+      <tr style="background:#1e3a5f;color:#fff"><td style="padding:6px"><b>NET Value</b></td><td style="text-align:right;padding:6px"><b>${cur || 'OMR'} ${fx(inv.totalAmount)}</b></td></tr>
+      ${cur ? `
+      <tr><td style="padding:4px;font-size:10.5px;color:#555;background:#fafafa">Amount before VAT (OMR)</td><td style="text-align:right;padding:4px;font-size:10.5px;color:#555">${fmt(inv.subtotal)}</td></tr>
+      <tr><td style="padding:4px;font-size:10.5px;color:#555;background:#fafafa">VAT (OMR)</td><td style="text-align:right;padding:4px;font-size:10.5px;color:#555">${fmt(inv.vatAmount)}</td></tr>
+      <tr><td style="padding:4px;font-size:10.5px;font-weight:bold;color:#1e3a5f;background:#f0f4f8">Total (OMR)</td><td style="text-align:right;padding:4px;font-size:10.5px;font-weight:bold;color:#1e3a5f">${fmt(inv.totalAmount)}</td></tr>` : ''}
     </table>`
     })()}
 

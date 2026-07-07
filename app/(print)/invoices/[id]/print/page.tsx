@@ -55,6 +55,15 @@ function applyCompany(s: any) {
   }
 }
 
+// New Omani Rial currency symbol (CBO 2025) — stylized ع over two bars
+const OMRSymbol = ({ size = '0.95em' }: { size?: string }) => (
+  <svg viewBox="0 0 100 90" style={{ height: size, width: 'auto', verticalAlign: '-0.12em', display: 'inline-block' }} fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M76 10 C58 -4 34 4 36 22 C37 32 45 38 56 40 L60 28 C52 27 48 24 48 19 C48 12 60 9 68 16 Z" />
+    <path d="M16 44 L96 44 L90 58 L10 58 Z" />
+    <path d="M8 66 L88 66 L82 80 L2 80 Z" />
+  </svg>
+)
+
 function fmt(n: any) {
   return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
 }
@@ -204,7 +213,7 @@ function MgmtFeeTemplate({ inv }: { inv: any }) {
           <tr><td style={{ padding: '4px 8px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>VAT ({vatRate}%)</td><td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right' }}>{fmt(vatAmt)}</td></tr>
           <tr style={{ backgroundColor: '#1e3a5f', color: '#fff' }}>
             <td style={{ padding: '6px 8px', border: '1px solid #1e3a5f', fontWeight: 700 }}>NET {feeWord} Fees Value</td>
-            <td style={{ padding: '6px 8px', border: '1px solid #1e3a5f', textAlign: 'right', fontWeight: 700 }}>RO &nbsp; {fmt(total)}</td>
+            <td style={{ padding: '6px 8px', border: '1px solid #1e3a5f', textAlign: 'right', fontWeight: 700 }}><OMRSymbol /> &nbsp; {fmt(total)}</td>
           </tr>
         </tbody>
       </table>
@@ -314,16 +323,20 @@ function ServiceFeeTemplate({ inv }: { inv: any }) {
         const rate = Number(inv.exchangeRate) > 0 ? Number(inv.exchangeRate) : 1
         const fx = (v: number) => cur ? fmt(v / rate) : fmt(v)
         return (
-          <table style={{ width: 300, marginLeft: 'auto', borderCollapse: 'collapse', marginBottom: 20 }}>
+          <table style={{ width: 320, marginLeft: 'auto', borderCollapse: 'collapse', marginBottom: 20 }}>
             <tbody>
-              <tr><td style={{ padding: '5px 10px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>Service Fees</td><td style={{ padding: '5px 10px', border: '1px solid #ddd', textAlign: 'right' }}>{fx(subtotal)}</td></tr>
+              <tr><td style={{ padding: '5px 10px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>Service Fees {cur ? `(${cur})` : ''}</td><td style={{ padding: '5px 10px', border: '1px solid #ddd', textAlign: 'right' }}>{fx(subtotal)}</td></tr>
               <tr><td style={{ padding: '5px 10px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>VAT ({vatRate}%)</td><td style={{ padding: '5px 10px', border: '1px solid #ddd', textAlign: 'right' }}>{fx(vatAmt)}</td></tr>
               <tr style={{ backgroundColor: '#1e3a5f', color: '#fff' }}>
                 <td style={{ padding: '6px 10px', fontWeight: 700 }}>NET Service fees Value</td>
-                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700 }}>{cur || 'RO'} &nbsp; {fx(total)}</td>
+                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700 }}>{cur ? <>{cur} &nbsp; {fx(total)}</> : <><OMRSymbol /> &nbsp; {fx(total)}</>}</td>
               </tr>
               {cur && (
-                <tr><td style={{ padding: '4px 10px', border: '1px solid #ddd', fontSize: 10, color: '#777' }}>Equivalent (OMR)</td><td style={{ padding: '4px 10px', border: '1px solid #ddd', textAlign: 'right', fontSize: 10, color: '#777' }}>{fmt(total)}</td></tr>
+                <>
+                  <tr><td style={{ padding: '4px 10px', border: '1px solid #ddd', backgroundColor: '#fafafa', fontSize: 10.5, color: '#555' }}>Amount before VAT (<OMRSymbol size="0.85em" />)</td><td style={{ padding: '4px 10px', border: '1px solid #ddd', textAlign: 'right', fontSize: 10.5, color: '#555' }}>{fmt(subtotal)}</td></tr>
+                  <tr><td style={{ padding: '4px 10px', border: '1px solid #ddd', backgroundColor: '#fafafa', fontSize: 10.5, color: '#555' }}>VAT (<OMRSymbol size="0.85em" />)</td><td style={{ padding: '4px 10px', border: '1px solid #ddd', textAlign: 'right', fontSize: 10.5, color: '#555' }}>{fmt(vatAmt)}</td></tr>
+                  <tr><td style={{ padding: '4px 10px', border: '1px solid #ddd', backgroundColor: '#f0f4f8', fontSize: 10.5, fontWeight: 700, color: '#1e3a5f' }}>Total (<OMRSymbol size="0.85em" />)</td><td style={{ padding: '4px 10px', border: '1px solid #ddd', textAlign: 'right', fontSize: 10.5, fontWeight: 700, color: '#1e3a5f' }}>{fmt(total)}</td></tr>
+                </>
               )}
             </tbody>
           </table>
@@ -443,15 +456,21 @@ function DebitCreditTemplate({ inv }: { inv: any }) {
               </tbody>
             </table>
 
-            <table style={{ width: 280, marginLeft: 'auto', borderCollapse: 'collapse', marginBottom: 20 }}>
+            <table style={{ width: 300, marginLeft: 'auto', borderCollapse: 'collapse', marginBottom: 20 }}>
               <tbody>
-                <tr><td style={{ padding: '4px 8px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>Subtotal</td><td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right' }}>{fx(subtotal)}</td></tr>
+                <tr><td style={{ padding: '4px 8px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>Subtotal {cur ? `(${cur})` : ''}</td><td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right' }}>{fx(subtotal)}</td></tr>
                 {vatAmt > 0 && <tr><td style={{ padding: '4px 8px', border: '1px solid #ddd', backgroundColor: '#f5f5f5', fontWeight: 600 }}>VAT ({vatRate}%)</td><td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right' }}>{fx(vatAmt)}</td></tr>}
                 <tr style={{ backgroundColor: isCredit ? '#16a34a' : '#dc2626', color: '#fff' }}>
                   <td style={{ padding: '6px 8px', fontWeight: 700 }}>Total {isCredit ? 'Credit' : 'Debit'}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700 }}>{cur || 'OMR'} &nbsp; {fx(total)}</td>
+                  <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700 }}>{cur ? <>{cur} &nbsp; {fx(total)}</> : <><OMRSymbol /> &nbsp; {fx(total)}</>}</td>
                 </tr>
-                {cur && <tr><td style={{ padding: '4px 8px', border: '1px solid #ddd', fontSize: 10, color: '#777' }}>Equivalent (OMR)</td><td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right', fontSize: 10, color: '#777' }}>{fmt(total)}</td></tr>}
+                {cur && (
+                  <>
+                    <tr><td style={{ padding: '4px 8px', border: '1px solid #ddd', backgroundColor: '#fafafa', fontSize: 10.5, color: '#555' }}>Amount before VAT (<OMRSymbol size="0.85em" />)</td><td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right', fontSize: 10.5, color: '#555' }}>{fmt(subtotal)}</td></tr>
+                    <tr><td style={{ padding: '4px 8px', border: '1px solid #ddd', backgroundColor: '#fafafa', fontSize: 10.5, color: '#555' }}>VAT (<OMRSymbol size="0.85em" />)</td><td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right', fontSize: 10.5, color: '#555' }}>{fmt(vatAmt)}</td></tr>
+                    <tr><td style={{ padding: '4px 8px', border: '1px solid #ddd', backgroundColor: '#f0f4f8', fontSize: 10.5, fontWeight: 700, color: '#1e3a5f' }}>Total (<OMRSymbol size="0.85em" />)</td><td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right', fontSize: 10.5, fontWeight: 700, color: '#1e3a5f' }}>{fmt(total)}</td></tr>
+                  </>
+                )}
               </tbody>
             </table>
           </>
