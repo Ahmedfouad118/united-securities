@@ -181,16 +181,19 @@ export default function NewInvoicePage() {
               </div>
               <div>
                 <label className="label">{L('نوع الفاتورة', 'Invoice Type')}</label>
-                <select className="input" value={form.invoiceType} onChange={e => setForm(f => ({ ...f, invoiceType: e.target.value }))}>
-                  {TYPE_OPTS.map(o => <option key={o.value} value={o.value}>{L(o.ar, o.en)}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="label">{L('التصنيف', 'Category')}</label>
-                <select className="input" value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}>
-                  <option value="">{L('— لا يوجد —', '— None —')}</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{lang === 'en' ? c.name : (c.nameAr || c.name)}</option>)}
-                </select>
+                {categories.length > 0 ? (
+                  <select className="input" value={form.categoryId} onChange={e => {
+                    const cat = categories.find(c => c.id === e.target.value)
+                    setForm(f => ({ ...f, categoryId: e.target.value, invoiceType: cat?.type || f.invoiceType }))
+                  }}>
+                    <option value="">{L('— اختر النوع —', '— Select type —')}</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{lang === 'en' ? c.name : (c.nameAr || c.name)}</option>)}
+                  </select>
+                ) : (
+                  <select className="input" value={form.invoiceType} onChange={e => setForm(f => ({ ...f, invoiceType: e.target.value }))}>
+                    {TYPE_OPTS.map(o => <option key={o.value} value={o.value}>{L(o.ar, o.en)}</option>)}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="label">{L('الحساب البنكي', 'Bank Account')}</label>
