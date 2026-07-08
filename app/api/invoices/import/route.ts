@@ -94,23 +94,24 @@ export async function POST(req: NextRequest) {
 
       const vatRate = num(pick(row, ['VAT%', 'الضريبة%', 'vatRate'])) || 5
       const dateRaw = pick(row, ['Date', 'التاريخ', 'date'])
+      // Anchor every imported date at 12:00 UTC of the intended calendar day so it
+      // never shifts to the previous/next day across timezones.
+      const noonUTC = (y: number, m: number, d: number) => new Date(Date.UTC(y, m, d, 12, 0, 0))
       let date = now
-      if (dateRaw instanceof Date && !isNaN(dateRaw.getTime())) {
-        date = dateRaw
-      } else if (typeof dateRaw === 'number') {
-        // Excel serial date number → JS date (Excel epoch 1899-12-30)
-        date = new Date(Math.round((dateRaw - 25569) * 86400 * 1000))
+      if (typeof dateRaw === 'number') {
+        const base = new Date(Math.round((dateRaw - 25569) * 86400 * 1000))
+        date = noonUTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate())
+      } else if (dateRaw instanceof Date && !isNaN(dateRaw.getTime())) {
+        date = noonUTC(dateRaw.getFullYear(), dateRaw.getMonth(), dateRaw.getDate())
       } else if (dateRaw) {
         const s = String(dateRaw).trim()
-        // Handle dd/mm/yyyy and dd-mm-yyyy explicitly (avoid US mm/dd ambiguity)
         const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/)
         if (m) {
           const dd = +m[1], mm = +m[2], yy = m[3].length === 2 ? 2000 + +m[3] : +m[3]
-          const d = new Date(yy, mm - 1, dd)
-          if (!isNaN(d.getTime())) date = d
+          date = noonUTC(yy, mm - 1, dd)
         } else {
           const d = new Date(s)
-          if (!isNaN(d.getTime())) date = d
+          if (!isNaN(d.getTime())) date = noonUTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
         }
       }
 

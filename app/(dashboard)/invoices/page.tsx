@@ -269,9 +269,10 @@ export default function InvoicesPage() {
     setImporting(true)
     const progressToast = toast.loading(lang === 'en' ? 'Reading file...' : 'جاري قراءة الملف...')
     try {
-      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true })
+      // No cellDates → dates come as Excel serial numbers (avoids timezone day-shift).
+      // raw:true keeps full-precision numbers (client numbers won't turn into 1.0E+12).
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' })
       const ws = wb.Sheets[wb.SheetNames[0]]
-      // raw:true keeps full-precision numbers (client numbers won't turn into 1.0E+12)
       const allRows: any[] = XLSX.utils.sheet_to_json(ws, { raw: true, defval: '' })
       if (!allRows.length) { toast.error(lang === 'en' ? 'File is empty' : 'الملف فارغ', { id: progressToast }); return }
 
