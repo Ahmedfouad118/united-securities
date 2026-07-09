@@ -65,11 +65,12 @@ export function renderInvoiceHtml(inv: any, company: any): string {
     </div>` : ''
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
-  <body style="font-family:Arial,sans-serif;color:#222;max-width:720px;margin:0 auto;padding:20px">
-    <table style="width:100%;border-bottom:2px solid #1e3a5f;padding-bottom:12px"><tr>
-      <td style="width:120px;text-align:center">${logo}</td>
-      <td style="text-align:center"><h2 style="margin:0;color:#1e3a5f">Tax Invoice</h2><h3 style="margin:4px 0">${title}</h3></td>
-      <td style="text-align:right;font-size:11px;color:#555">
+  <body style="font-family:Arial,sans-serif;color:#222;margin:0">
+   <div class="doc-body" style="max-width:720px;margin:0 auto;padding:20px;display:flex;flex-direction:column;min-height:265mm;box-sizing:border-box">
+    <table style="width:100%;border-bottom:2px solid #1e3a5f;padding-bottom:12px;vertical-align:top"><tr>
+      <td style="width:110px;text-align:center;vertical-align:middle">${logo}</td>
+      <td style="text-align:center;vertical-align:middle"><h2 style="margin:0;color:#1e3a5f;font-size:20px">Tax Invoice</h2><h3 style="margin:4px 0;font-size:15px;color:#333">${title}</h3></td>
+      <td style="text-align:right;font-size:11px;color:#555;vertical-align:top">
         <b style="color:#1e3a5f">${nameEn}</b><br/>VAT #: <b>${vat}</b><br/>${poBox}<br/>Phone: ${phone}<br/>Fax: ${fax}<br/>${address}
       </td>
     </tr></table>
@@ -111,7 +112,11 @@ export function renderInvoiceHtml(inv: any, company: any): string {
     ${bank}
 
     <p style="font-size:10px;color:#777;font-style:italic;margin-top:14px">Disclaimer: This invoice is computer generated and does not require any signature.</p>
-    <hr/>
-    <p style="text-align:center;font-size:10px;color:#777">${nameEn}, ${poBox}<br/>Tel: ${phone} | Fax: ${fax} | ${website} | ${email}</p>
+
+    <div class="doc-footer" style="margin-top:auto;border-top:2px solid #1e3a5f;padding-top:8px;text-align:center;font-size:10px;color:#777">
+      <p style="margin:2px 0">${nameEn}, ${poBox}, ${address}</p>
+      <p style="margin:2px 0">Tel: ${phone} | Fax: ${fax} | Website: ${website} | Email: ${email}</p>
+    </div>
+   </div>
   </body></html>`
 }

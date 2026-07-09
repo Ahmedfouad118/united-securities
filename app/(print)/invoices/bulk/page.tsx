@@ -38,13 +38,16 @@ function BulkInner() {
     <>
       <style>{`
         @media print {
-          @page { size: A4; margin: 10mm; }
+          @page { size: A4; margin: 8mm; }
+          html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important; }
-          .inv-page { page-break-after: always; }
-          .inv-page:last-child { page-break-after: auto; }
         }
         body { background: #fff; margin: 0; }
-        .inv-page { max-width: 750px; margin: 0 auto 30px; }
+        /* each invoice = one full page, footer pushed to the bottom */
+        .inv-page { page-break-after: always; break-after: page; }
+        .inv-page:last-child { page-break-after: auto; }
+        .inv-page .doc-body { min-height: 277mm !important; }
+        .inv-page table { page-break-inside: avoid; }
       `}</style>
       <div className="no-print" style={{ position: 'fixed', top: 12, right: 12, zIndex: 999, display: 'flex', gap: 8 }}>
         <button onClick={() => window.print()} style={{ background: '#1e3a5f', color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 6, cursor: 'pointer' }}>🖨 Print / Save PDF ({ids.length})</button>

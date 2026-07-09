@@ -208,8 +208,22 @@ export default function InvoicesPage() {
     } finally { setSendingEmail(false) }
   }
 
-  function printSelected() {
-    const ids = selected.length ? selected : invoices.map(i => i.id)
+  // Fetch ALL invoice IDs matching the current filters (across every page)
+  async function fetchAllMatchingIds(): Promise<string[]> {
+    const p = new URLSearchParams({ search, status, invoiceType, approvalStatus, page: '1', limit: '2000', sortBy, sortDir })
+    if (dateFrom) p.set('dateFrom', dateFrom)
+    if (dateTo) p.set('dateTo', dateTo)
+    if (fromNum) p.set('fromNum', fromNum)
+    if (toNum) p.set('toNum', toNum)
+    const res = await fetch(`/api/invoices?${p}`)
+    const data = await res.json()
+    return (data.invoices || []).map((i: any) => i.id)
+  }
+
+  async function printSelected() {
+    // If some rows are ticked → print those; otherwise print ALL matching the filters
+    let ids = selected
+    if (!ids.length) ids = await fetchAllMatchingIds()
     if (!ids.length) return toast.error(lang === 'en' ? 'No invoices' : 'لا توجد فواتير')
     window.open(`/invoices/bulk?ids=${ids.join(',')}`, '_blank')
   }
@@ -364,6 +378,11 @@ export default function InvoicesPage() {
               <input className="input text-sm w-36" placeholder={lang === 'en' ? 'From No.' : 'من رقم'} value={fromNum} onChange={e => setFromNum(e.target.value)} />
               <span>—</span>
               <input className="input text-sm w-36" placeholder={lang === 'en' ? 'To No.' : 'إلى رقم'} value={toNum} onChange={e => setToNum(e.target.value)} />
+              {(fromNum || toNum || dateFrom || dateTo || search || invoiceType || status) && (
+                <span className="bg-primary-50 text-primary-700 px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap">
+                  {total} {lang === 'en' ? 'matched' : 'مطابقة'}
+                </span>
+              )}
             </div>
             <button onClick={clearFilters} className="btn-secondary text-sm py-2"><X size={14} /> {lang === 'en' ? 'Clear' : 'مسح البحث'}</button>
             <div className="flex gap-2 mr-auto">
@@ -472,10 +491,25 @@ export default function InvoicesPage() {
         </div>
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-4">
+          <div className="flex items-center justify-center gap-1.5 mt-4 flex-wrap">
+            <button onClick={() => setPage(1)} disabled={page === 1} className="btn-secondary px-2.5 py-1.5 text-xs">«</button>
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="btn-secondary px-3 py-1.5 text-xs">{t.common.prev}</button>
-            <span className="text-sm text-gray-600">{t.common.page} {page} {t.common.of} {totalPages}</span>
+            {(() => {
+              // show up to 5 page numbers centered on the current page
+              const win = 5
+              let start = Math.max(1, page - Math.floor(win / 2))
+              let end = Math.min(totalPages, start + win - 1)
+              start = Math.max(1, end - win + 1)
+              const nums = []
+              for (let i = start; i <= end; i++) nums.push(i)
+              return nums.map(n => (
+                <button key={n} onClick={() => setPage(n)}
+                  className={`px-3 py-1.5 text-xs rounded-lg font-medium ${n === page ? 'bg-primary-600 text-white' : 'btn-secondary'}`}>{n}</button>
+              ))
+            })()}
             <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages} className="btn-secondary px-3 py-1.5 text-xs">{t.common.next}</button>
+            <button onClick={() => setPage(totalPages)} disabled={page >= totalPages} className="btn-secondary px-2.5 py-1.5 text-xs">»</button>
+            <span className="text-xs text-gray-400 ml-2">({total})</span>
           </div>
         )}
       </div>
