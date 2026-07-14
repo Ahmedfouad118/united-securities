@@ -65,6 +65,7 @@ export default function InvoicesPage() {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sortBy, setSortBy] = useState('createdAt')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [filterCatId, setFilterCatId] = useState('')
 
   function toggleSort(key: string) {
     if (!key) return
@@ -77,6 +78,7 @@ export default function InvoicesPage() {
     setLoading(true)
     try {
       const p = new URLSearchParams({ search, status, invoiceType, approvalStatus, page: String(page), limit: '20', sortBy, sortDir })
+      if (filterCatId) p.set('categoryId', filterCatId)
       if (dateFrom) p.set('dateFrom', dateFrom)
       if (dateTo) p.set('dateTo', dateTo)
       if (fromNum) p.set('fromNum', fromNum)
@@ -86,7 +88,7 @@ export default function InvoicesPage() {
       setInvoices(data.invoices || [])
       setTotal(data.total || 0)
     } finally { setLoading(false) }
-  }, [search, status, invoiceType, approvalStatus, page, dateFrom, dateTo, fromNum, toNum, sortBy, sortDir])
+  }, [search, status, invoiceType, approvalStatus, page, dateFrom, dateTo, fromNum, toNum, sortBy, sortDir, filterCatId])
 
   useEffect(() => { fetchInvoices() }, [fetchInvoices])
 
@@ -148,7 +150,7 @@ export default function InvoicesPage() {
   }
 
   function clearFilters() {
-    setSearch(''); setStatus(''); setInvoiceType(''); setApprovalStatus('')
+    setSearch(''); setStatus(''); setInvoiceType(''); setApprovalStatus(''); setFilterCatId('')
     setDateFrom(''); setDateTo(''); setFromNum(''); setToNum(''); setPage(1)
   }
 
@@ -353,9 +355,18 @@ export default function InvoicesPage() {
                 )}
               </>
             )}
-            <select className="input text-sm w-40" value={invoiceType} onChange={e => { setInvoiceType(e.target.value); setPage(1) }}>
+            <select className="input text-sm w-40" value={filterCatId || invoiceType}
+              onChange={e => {
+                const v = e.target.value
+                const isCat = categories.some(c => c.id === v)
+                setFilterCatId(isCat ? v : '')
+                setInvoiceType(isCat ? '' : v)
+                setPage(1)
+              }}>
               <option value="">{lang === 'en' ? 'All Types' : 'كل الأنواع'}</option>
-              {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {categories.length > 0
+                ? categories.map(c => <option key={c.id} value={c.id}>{lang === 'en' ? c.name : (c.nameAr || c.name)}</option>)
+                : Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
             <select className="input text-sm w-36" value={status} onChange={e => { setStatus(e.target.value); setPage(1) }}>
               <option value="">{lang === 'en' ? 'All Status' : 'كل الحالات'}</option>
@@ -378,7 +389,7 @@ export default function InvoicesPage() {
               <input className="input text-sm w-36" placeholder={lang === 'en' ? 'From No.' : 'من رقم'} value={fromNum} onChange={e => setFromNum(e.target.value)} />
               <span>—</span>
               <input className="input text-sm w-36" placeholder={lang === 'en' ? 'To No.' : 'إلى رقم'} value={toNum} onChange={e => setToNum(e.target.value)} />
-              {(fromNum || toNum || dateFrom || dateTo || search || invoiceType || status) && (
+              {(fromNum || toNum || dateFrom || dateTo || search || invoiceType || filterCatId || status) && (
                 <span className="bg-primary-50 text-primary-700 px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap">
                   {total} {lang === 'en' ? 'matched' : 'مطابقة'}
                 </span>

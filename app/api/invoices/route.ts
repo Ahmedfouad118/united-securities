@@ -54,10 +54,13 @@ export async function GET(req: NextRequest) {
   const sortBy = searchParams.get('sortBy') || 'createdAt'
   const sortDir = (searchParams.get('sortDir') || 'desc') === 'asc' ? 'asc' : 'desc'
 
+  const categoryId = searchParams.get('categoryId') || ''
+
   const where: any = {}
   if (status) where.status = status
   if (approvalStatus) where.approvalStatus = approvalStatus
   if (invoiceType) where.invoiceType = invoiceType
+  if (categoryId) where.categoryId = categoryId
   if (customerId) where.customerId = customerId
   if (search) where.OR = [
     { customer: { name: { contains: search, mode: 'insensitive' } } },
