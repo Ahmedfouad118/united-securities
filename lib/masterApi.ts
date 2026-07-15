@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from './auth'
 import { prisma } from './db'
 
-type ModelName = 'invoiceCategory' | 'bankAccount' | 'serviceType' | 'paymentCategory'
+type ModelName = 'invoiceCategory' | 'bankAccount' | 'serviceType' | 'paymentCategory' | 'supplier' | 'letterType'
 
 export async function masterGET(model: ModelName) {
   const session = await getServerSession(authOptions)
@@ -19,6 +19,13 @@ const NUMERIC_FIELDS: Record<string, string[]> = {
   invoiceCategory: [],
   bankAccount: [],
   paymentCategory: [],
+  supplier: [],
+  letterType: [],
+}
+
+// Boolean columns fed from <select> as 'true'/'false' strings
+const BOOLEAN_FIELDS: Record<string, string[]> = {
+  letterType: ['online'],
 }
 
 function sanitize(model: ModelName, body: any) {
@@ -26,6 +33,7 @@ function sanitize(model: ModelName, body: any) {
   for (const [k, v] of Object.entries(body)) {
     if (v === '') { out[k] = null; continue }
     if (NUMERIC_FIELDS[model]?.includes(k)) { const n = parseFloat(String(v)); out[k] = isNaN(n) ? 0 : n; continue }
+    if (BOOLEAN_FIELDS[model]?.includes(k)) { out[k] = v === true || v === 'true'; continue }
     out[k] = v
   }
   return out

@@ -44,6 +44,79 @@ model User {
   invoicesCreated Invoice[]     @relation("CreatedBy")
   invoicesApproved Invoice[]    @relation("ApprovedBy")
   receiptsCreated Receipt[]
+  lettersCreated  Letter[]      @relation("LetterCreatedBy")
+}
+
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  nameAr        String?
+  phone         String?
+  email         String?
+  address       String?
+  bankName      String?
+  branch        String?
+  accountNumber String?
+  iban          String?
+  swiftCode     String?
+  notes         String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  letters       Letter[]
+}
+
+model LetterType {
+  id        String   @id @default(cuid())
+  name      String
+  nameAr    String?
+  fromParty String   @default("COMPANY") // COMPANY | CUSTOMER | SUPPLIER | BANK
+  toParty   String   @default("SUPPLIER") // CUSTOMER | SUPPLIER | COMPANY | BANK
+  online    Boolean  @default(false)
+  bodyText  String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  letters   Letter[]
+}
+
+model Letter {
+  id              String      @id @default(cuid())
+  refNumber       String      @unique // US/AF/650/2026
+  seq             Int         @default(0)
+  typeId          String?
+  type            LetterType? @relation(fields: [typeId], references: [id])
+  date            DateTime    @default(now())
+  toBankName      String?
+  toBankBranch    String?
+  fromAccountName String?
+  fromAccountNo   String?
+  customerId      String?
+  customer        Customer?   @relation(fields: [customerId], references: [id])
+  supplierId      String?
+  supplier        Supplier?   @relation(fields: [supplierId], references: [id])
+  amount          Float       @default(0)
+  currency        String      @default("OMR")
+  amountWords     String?
+  benAccountName  String?
+  benAccountNo    String?
+  benBankName     String?
+  benBranch       String?
+  benIban         String?
+  benSwift        String?
+  benCurrency     String?
+  corrBank        String?
+  corrSwift       String?
+  refLine         String?
+  purpose         String?
+  settlementDate  DateTime?
+  invoiceData     String? // JSON [{remarks, invoiceNo, amount}]
+  chargesNote     String?
+  extraNote       String?
+  online          Boolean     @default(false)
+  createdById     String?
+  createdByUser   User?       @relation("LetterCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }
 
 model Customer {
@@ -67,6 +140,7 @@ model Customer {
   invoices       Invoice[]
   transactions   Transaction[]
   receipts       Receipt[]
+  letters        Letter[]
 }
 
 model InvoiceCategory {

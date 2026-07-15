@@ -6,7 +6,7 @@ import { useState } from 'react'
 import {
   LayoutDashboard, Users, FileText, Receipt, BarChart3,
   Settings, LogOut, Building2, Tag, Landmark, Briefcase,
-  Wallet, ChevronDown, ChevronLeft,
+  Wallet, ChevronDown, ChevronLeft, Mail, Truck, MailPlus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { hasPermission } from '@/lib/permissions'
@@ -28,6 +28,7 @@ export default function Sidebar() {
     { href: '/dashboard', label: t.nav.dashboard, icon: LayoutDashboard, permission: 'VIEW_DASHBOARD' as const },
     { href: '/customers', label: t.nav.customers, icon: Users, permission: 'VIEW_CUSTOMERS' as const },
     { href: '/invoices', label: t.nav.invoices, icon: FileText, permission: 'VIEW_INVOICES' as const },
+    { href: '/letters', label: lang === 'en' ? 'Letters' : 'الرسائل', icon: Mail, permission: 'VIEW_INVOICES' as const },
     { href: '/receipts', label: t.nav.receipts, icon: Receipt, permission: 'CREATE_PAYMENT' as const },
     { href: '/reports', label: t.nav.reports, icon: BarChart3, permission: 'VIEW_REPORTS' as const },
   ]
@@ -35,6 +36,8 @@ export default function Sidebar() {
   const mastersNav = [
     { href: '/masters/company', label: lang === 'en' ? 'Company Info' : 'بيانات الشركة', icon: Building2 },
     { href: '/masters/invoice-categories', label: t.nav.invoiceCategories, icon: Tag },
+    { href: '/masters/letter-types', label: lang === 'en' ? 'Letter Types' : 'أنواع الرسائل', icon: MailPlus },
+    { href: '/masters/suppliers', label: lang === 'en' ? 'Suppliers' : 'الموردين', icon: Truck },
     { href: '/masters/banks', label: t.nav.banks, icon: Landmark },
     { href: '/masters/service-types', label: t.nav.serviceTypes, icon: Briefcase },
     { href: '/masters/payment-categories', label: t.nav.paymentCategories, icon: Wallet },
